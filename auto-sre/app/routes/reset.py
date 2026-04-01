@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
+from typing import Optional
 
 from app.schemas.action import ResetRequest
 from app.schemas.observation import Observation, ResetResponse
@@ -12,9 +13,20 @@ router = APIRouter()
 
 
 @router.post("/reset", response_model=ResetResponse)
-async def reset_environment(body: ResetRequest | None = None) -> ResetResponse:
+async def reset_environment(body: Optional[dict] = Body(default=None)) -> ResetResponse:
     """Reset the environment to the specified task's initial state."""
-    task_id = body.task_id if body and body.task_id else "t1_config"
+    # Mapping for easy/medium/hard to internal task IDs
+    task_map = {
+        "easy": "t1_config",
+        "medium": "t2_port",
+        "hard": "t3_dep"
+    }
+
+    task_id = "t1_config" # Default fallback
+    if body and "task_id" in body:
+        requested = body["task_id"]
+        task_id = task_map.get(requested, requested) # Use map or direct ID
+
     return _do_reset(task_id)
 
 @router.get("/reset", response_model=ResetResponse)
