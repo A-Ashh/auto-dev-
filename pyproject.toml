@@ -17,7 +17,11 @@ dependencies = [
     "gradio>=4.0.0",
     "httpx>=0.24",
     "openai>=1.0.0",
+    "openenv-core>=0.2.0",
 ]
+
+[project.scripts]
+server = "app.main:app"
 
 [project.optional-dependencies]
 dev = [

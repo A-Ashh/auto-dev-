@@ -2,6 +2,8 @@ version: "1.0"
 name: "auto-sre"
 description: "An OpenEnv-compliant environment for evaluating AI SRE agents on Linux infrastructure repair tasks."
 
+entry_point: "app.main:app"
+
 author: "Auto-SRE Team"
 license: "MIT"
 url: "https://huggingface.co/spaces/goated1/auto-sre"
@@ -20,15 +22,9 @@ tasks:
     description: "The target Node.js application fails to boot due to missing NPM packages. The agent must execute `npm install`."
     difficulty: "hard"
 
-interface:
-  actions:
-    - name: "tool"
-    - name: "arguments"
-  observations:
-    - name: "stdout"
-    - name: "stderr"
-    - name: "cwd"
-    - name: "health_status"
+observation_space: "DevOpsObservation"
+action_space: "DevOpsAction"
+reward_space: "Reward"
 
 evaluation:
   metrics:
