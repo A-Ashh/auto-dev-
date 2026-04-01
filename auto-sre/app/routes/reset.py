@@ -12,9 +12,10 @@ router = APIRouter()
 
 
 @router.post("/reset", response_model=ResetResponse)
-async def reset_environment(body: ResetRequest) -> ResetResponse:
+async def reset_environment(body: ResetRequest | None = None) -> ResetResponse:
     """Reset the environment to the specified task's initial state."""
-    return _do_reset(body.task_id)
+    task_id = body.task_id if body and body.task_id else "t1_config"
+    return _do_reset(task_id)
 
 @router.get("/reset", response_model=ResetResponse)
 async def reset_environment_get(task_id: str | None = None) -> ResetResponse:

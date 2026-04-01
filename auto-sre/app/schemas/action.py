@@ -21,8 +21,8 @@ class DevOpsAction(BaseModel):
 class ResetRequest(BaseModel):
     """Request body for the /reset endpoint."""
 
-    task_id: str = Field(
-        ...,
+    task_id: str | None = Field(
+        default=None,
         description="Identifier of the task scenario to load",
         examples=["t1_config", "t2_port", "t3_dep"],
     )
