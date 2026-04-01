@@ -341,7 +341,9 @@ def simulate_analysis(issue: str):
     """
 
 
-with gr.Blocks(css=CSS, theme=gr.themes.Base(primary_hue="indigo", neutral_hue="slate")) as demo:
+_theme = gr.themes.Base(primary_hue="indigo", neutral_hue="slate")
+
+with gr.Blocks(css=CSS, theme=_theme) as demo:
     with gr.Row(equal_height=True):
         
         # Left Panel (40%)

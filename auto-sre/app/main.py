@@ -7,6 +7,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.routes import reset, step, state, tasks, grader, baseline
 
@@ -47,7 +48,14 @@ async def healthz() -> dict[str, str]:
     """Health-check endpoint."""
     return {"status": "ok", "service": "auto-sre"}
 
-# Mount the Premium Gradio UI at /ui (keeps API routes at root accessible)
+
+@app.get("/", include_in_schema=False)
+async def root_redirect() -> RedirectResponse:
+    """Redirect root to the Gradio UI dashboard."""
+    return RedirectResponse(url="/ui")
+
+
+# Mount the Premium Gradio UI at /ui (API routes remain at root)
 import gradio as gr
 from app.ui import demo
 app = gr.mount_gradio_app(app, demo, path="/ui")
