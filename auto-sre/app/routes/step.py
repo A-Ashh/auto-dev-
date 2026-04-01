@@ -6,7 +6,10 @@ from fastapi import APIRouter, HTTPException, Body
 from typing import Any
 
 from app.schemas.action import DevOpsAction
-# ... existing imports ...
+from app.schemas.observation import StepResponse
+from app.routes._session import get_session
+
+router = APIRouter()
 
 
 @router.post("/step", response_model=StepResponse)
