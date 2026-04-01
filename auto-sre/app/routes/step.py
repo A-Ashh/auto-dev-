@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Body
 from typing import Any
 
 from app.schemas.action import DevOpsAction
-from app.schemas.observation import StepResponse
+from app.schemas.observation import StepResponse, Observation, Reward
 from app.routes._session import get_session
 
 router = APIRouter()
@@ -52,7 +52,7 @@ async def step_action(body: dict = Body(...)) -> Any:
                 "cwd": session.sandbox.cwd,
                 "health_status": done
             },
-            "reward": reward,
+            "reward": Reward(reward),
             "done": session.is_done,
             "info": {
                 "steps_taken": session.step_count,

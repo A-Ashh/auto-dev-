@@ -47,8 +47,7 @@ async def healthz() -> dict[str, str]:
     """Health-check endpoint."""
     return {"status": "ok", "service": "auto-sre"}
 
-# Mount the Premium Gradio UI at the root
+# Mount the Premium Gradio UI at /ui (keeps API routes at root accessible)
 import gradio as gr
 from app.ui import demo
-app = gr.mount_gradio_app(app, demo, path="/")
-
+app = gr.mount_gradio_app(app, demo, path="/ui")
