@@ -21,6 +21,10 @@ tasks:
     name: "Missing Application Dependencies"
     description: "The target Node.js application fails to boot due to missing NPM packages. The agent must execute `npm install`."
     difficulty: "hard"
+  - id: "t4_trap"
+    name: "Healthy System Trap"
+    description: "A system report suggests a failure, but the system may already be healthy. Verify before taking action."
+    difficulty: "hard"
 
 observation_space: "DevOpsObservation"
 action_space: "DevOpsAction"

@@ -1,4 +1,4 @@
-"""Concrete graders for each MVP task."""
+"""Concrete graders for each MVP task with polished shaped rewards."""
 
 from __future__ import annotations
 
@@ -16,12 +16,22 @@ class ConfigGrader(BaseGrader):
         process_manager: ProcessManager,
         command_history: list[str],
     ) -> tuple[float, bool, str]:
+        # 1. Success check
         if filesystem.exists("/etc/app/conf"):
-            return 1.0, True, "Service is healthy. Config file restored."
-        # Partial credit for diagnostic investigation
-        if any("conf" in cmd or "ls" in cmd or "cat" in cmd for cmd in command_history):
-            return 0.3, False, "Diagnostic actions detected, but config not yet restored."
-        return 0.0, False, "Config file /etc/app/conf is still missing."
+            return 1.0, True, "Config fixed successfully"
+
+        # 2. Partial reward calculation
+        score = 0.0
+        if any(cmd.startswith(("ls", "cat", "find")) for cmd in command_history):
+            score += 0.1
+        if any(cmd.startswith("mv") for cmd in command_history):
+            score += 0.6
+
+        # 3. Efficiency penalty
+        if len(command_history) > 8:
+            score -= 0.1
+
+        return min(max(score, 0.0), 0.9), False, "Explored system and attempted config fix"
 
 
 class PortGrader(BaseGrader):
@@ -33,11 +43,22 @@ class PortGrader(BaseGrader):
         process_manager: ProcessManager,
         command_history: list[str],
     ) -> tuple[float, bool, str]:
+        # 1. Success check
         if process_manager.is_port_free(8080):
-            return 1.0, True, "Service is healthy. Port 8080 is free."
-        if any("ps" in cmd or "kill" in cmd for cmd in command_history):
-            return 0.3, False, "Diagnostic actions detected, but port 8080 is still occupied."
-        return 0.0, False, "Port 8080 is still occupied."
+            return 1.0, True, "Port freed successfully"
+
+        # 2. Partial reward calculation
+        score = 0.0
+        if any(cmd.startswith(("ps", "netstat", "lsof")) for cmd in command_history):
+            score += 0.1
+        if any(cmd.startswith("kill") for cmd in command_history):
+            score += 0.6
+
+        # 3. Efficiency penalty
+        if len(command_history) > 8:
+            score -= 0.1
+
+        return min(max(score, 0.0), 0.9), False, "Investigated processes and attempted to free port"
 
 
 class DependencyGrader(BaseGrader):
@@ -49,11 +70,52 @@ class DependencyGrader(BaseGrader):
         process_manager: ProcessManager,
         command_history: list[str],
     ) -> tuple[float, bool, str]:
+        # 1. Success check
         has_modules = filesystem.exists("/home/user/app/node_modules/.package-lock.json")
         if has_modules:
-            return 1.0, True, "Service is healthy. Dependencies installed and app runs."
-        if any("npm" in cmd for cmd in command_history):
-            return 0.5, False, "npm command detected but node_modules not found."
-        if any("ls" in cmd or "cat" in cmd for cmd in command_history):
-            return 0.3, False, "Diagnostic actions detected, but dependencies not installed."
-        return 0.0, False, "Missing dependency: dotenv. Run npm install."
+            return 1.0, True, "Dependencies installed"
+
+        # 2. Partial reward calculation
+        score = 0.0
+        if any(cmd.startswith(("ls", "cat", "find")) for cmd in command_history):
+            score += 0.1
+        if any(cmd.startswith("npm install") for cmd in command_history):
+            score += 0.7
+
+        # 3. Efficiency penalty
+        if len(command_history) > 8:
+            score -= 0.1
+
+        return min(max(score, 0.0), 0.9), False, "Checked dependencies and attempted installation"
+
+
+class TrapGrader(BaseGrader):
+    """Grader for t4_trap — no fixing required."""
+
+    def grade(
+        self,
+        filesystem: MockFilesystem,
+        process_manager: ProcessManager,
+        command_history: list[str],
+    ) -> tuple[float, bool, str]:
+        # 1. Failure condition: any destructive action taken
+        if any(cmd.startswith(("mv", "kill", "rm", "npm install")) for cmd in command_history):
+            return 0.0, True, "Incorrect action — system was already healthy"
+
+        # 2. Success condition: at least one diagnostic, no destructive actions
+        if (
+            len(command_history) > 0
+            and any(cmd.startswith(("ls", "cat", "ps", "netstat", "lsof")) for cmd in command_history)
+            and all(not cmd.startswith(("mv", "kill", "rm", "npm install")) for cmd in command_history)
+        ):
+            return 1.0, True, "Correctly identified system is healthy and avoided unnecessary actions"
+
+        # 3. Partial reward logic: reward diagnostic exploration
+        score = 0.0
+        if any(cmd.startswith(("ls", "cat", "ps", "netstat", "lsof")) for cmd in command_history):
+            score += 0.3
+
+        return min(max(score, 0.0), 0.9), False, "Safe exploration but no conclusion yet"
+
+
+

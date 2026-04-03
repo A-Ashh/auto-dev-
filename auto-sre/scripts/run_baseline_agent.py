@@ -41,12 +41,14 @@ TASK_HINTS = {
     "t1_config": "A config file at /etc/app/conf is missing. It may exist under a backup name. Use ls to explore.",
     "t2_port": "Port 8080 is occupied by a rogue process. Use ps aux to investigate, then kill the process.",
     "t3_dep": "A Node.js application at /home/user/app is missing dependencies. Install them.",
+    "t4_trap": "A system report suggests a failure, but the system may already be healthy. Verify before taking action.",
 }
 
 HARDCODED_SOLUTIONS: dict[str, list[str]] = {
     "t1_config": ["mv /etc/app/conf.bak /etc/app/conf"],
     "t2_port": ["kill -9 512"],
     "t3_dep": ["cd /home/user/app", "npm install"],
+    "t4_trap": ["ls /etc/app"],
 }
 
 
