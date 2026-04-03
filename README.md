@@ -6,21 +6,53 @@ colorTo: green
 sdk: docker
 pinned: false
 ---
-# Auto-SRE: OpenEnv for AI SRE Agent Evaluation
+# 🚀 Auto-SRE: AI That Fixes Broken Servers
 
-An **OpenEnv-compliant** environment for evaluating AI agents' ability to diagnose and repair simulated Linux infrastructure failures using standard CLI tools.
+Auto-SRE is a real-world environment where AI agents learn to **diagnose and repair broken systems automatically**, just like a DevOps engineer.
 
-> **Domain:** Site Reliability Engineering (SRE) — real-world infrastructure repair tasks that DevOps engineers face daily.
+Instead of solving toy problems, agents must debug real infrastructure failures using terminal commands — fixing misconfigurations, resolving port conflicts, and restoring crashed applications.
+
+---
+
+## 🧠 Why This Matters
+
+Modern systems fail constantly:
+- Servers crash  
+- Ports get blocked  
+- Deployments break  
+
+Today:
+👨‍💻 Engineers manually debug and fix issues  
+
+Future:
+🤖 AI agents detect, diagnose, and fix systems automatically  
+
+Auto-SRE is a **training and evaluation environment for that future**.
 
 ---
 
-## 🎯 Environment Description & Motivation
+## ⚙️ What This Project Does
 
-AI agents and LLMs are increasingly used in DevOps automation, but there is no standardized benchmark for evaluating an AI's ability to diagnose and repair live Linux infrastructure issues.
-
-Auto-SRE fills this gap by providing a **sandboxed, deterministic Linux-like environment** where agents must use CLI tools to fix broken systems — exactly like a real junior SRE would.
+- Simulates a Linux-like system with logs, files, and processes
+- Allows AI agents to run real CLI commands (`ls`, `kill`, `npm install`, etc.)
+- Tracks system state safely using a sandbox
+- Evaluates agents using deterministic grading and reward signals
 
 ---
+
+## 🎯 Key Highlights
+
+- Real-world DevOps simulation (not a toy problem)
+- Multi-step reasoning required
+- Deterministic grader with partial rewards
+- Fully OpenEnv compliant
+- Deployed on Hugging Face Spaces
+
+---
+
+## 💡 One-Line Summary
+
+> Auto-SRE is a system where AI learns to fix broken infrastructure like a real engineer.
 
 ## 📡 API Endpoints
 
