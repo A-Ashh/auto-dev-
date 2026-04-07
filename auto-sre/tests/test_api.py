@@ -67,7 +67,7 @@ class TestStepEndpoint:
             json={"tool": "run_command", "arguments": "mv /etc/app/conf.bak /etc/app/conf"},
         )
         data = resp.json()
-        assert data["reward"] == 1.0
+        assert data["reward"] == 0.99
         assert data["done"] is True
 
 
@@ -98,7 +98,7 @@ class TestFullEpisodes:
             json={"tool": "run_command", "arguments": "kill -9 512"},
         )
         data = resp.json()
-        assert data["reward"] == 1.0
+        assert data["reward"] == 0.99
         assert data["done"] is True
 
     @pytest.mark.asyncio
@@ -115,5 +115,5 @@ class TestFullEpisodes:
             json={"tool": "run_command", "arguments": "npm install"},
         )
         data = resp.json()
-        assert data["reward"] == 1.0
+        assert data["reward"] == 0.99
         assert data["done"] is True

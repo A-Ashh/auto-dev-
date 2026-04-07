@@ -18,10 +18,10 @@ class ConfigGrader(BaseGrader):
     ) -> tuple[float, bool, str]:
         # 1. Success check
         if filesystem.exists("/etc/app/conf"):
-            return 1.0, True, "Config fixed successfully"
+            return 0.99, True, "Config fixed successfully"
 
         # 2. Partial reward calculation
-        score = 0.0
+        score = 0.01
         if any(cmd.startswith(("ls", "cat", "find")) for cmd in command_history):
             score += 0.1
         if any(cmd.startswith("mv") for cmd in command_history):
@@ -31,7 +31,7 @@ class ConfigGrader(BaseGrader):
         if len(command_history) > 8:
             score -= 0.1
 
-        return min(max(score, 0.0), 0.9), False, "Explored system and attempted config fix"
+        return min(max(score, 0.01), 0.99), False, "Explored system and attempted config fix"
 
 
 class PortGrader(BaseGrader):
@@ -45,10 +45,10 @@ class PortGrader(BaseGrader):
     ) -> tuple[float, bool, str]:
         # 1. Success check
         if process_manager.is_port_free(8080):
-            return 1.0, True, "Port freed successfully"
+            return 0.99, True, "Port freed successfully"
 
         # 2. Partial reward calculation
-        score = 0.0
+        score = 0.01
         if any(cmd.startswith(("ps", "netstat", "lsof")) for cmd in command_history):
             score += 0.1
         if any(cmd.startswith("kill") for cmd in command_history):
@@ -58,7 +58,7 @@ class PortGrader(BaseGrader):
         if len(command_history) > 8:
             score -= 0.1
 
-        return min(max(score, 0.0), 0.9), False, "Investigated processes and attempted to free port"
+        return min(max(score, 0.01), 0.99), False, "Investigated processes and attempted to free port"
 
 
 class DependencyGrader(BaseGrader):
@@ -73,10 +73,10 @@ class DependencyGrader(BaseGrader):
         # 1. Success check
         has_modules = filesystem.exists("/home/user/app/node_modules/.package-lock.json")
         if has_modules:
-            return 1.0, True, "Dependencies installed"
+            return 0.99, True, "Dependencies installed"
 
         # 2. Partial reward calculation
-        score = 0.0
+        score = 0.01
         if any(cmd.startswith(("ls", "cat", "find")) for cmd in command_history):
             score += 0.1
         if any(cmd.startswith("npm install") for cmd in command_history):
@@ -86,7 +86,7 @@ class DependencyGrader(BaseGrader):
         if len(command_history) > 8:
             score -= 0.1
 
-        return min(max(score, 0.0), 0.9), False, "Checked dependencies and attempted installation"
+        return min(max(score, 0.01), 0.99), False, "Checked dependencies and attempted installation"
 
 
 class TrapGrader(BaseGrader):
@@ -100,7 +100,7 @@ class TrapGrader(BaseGrader):
     ) -> tuple[float, bool, str]:
         # 1. Failure condition: any destructive action taken
         if any(cmd.startswith(("mv", "kill", "rm", "npm install")) for cmd in command_history):
-            return 0.0, True, "Incorrect action — system was already healthy"
+            return 0.01, True, "Incorrect action — system was already healthy"
 
         # 2. Success condition: at least one diagnostic, no destructive actions
         if (
@@ -108,14 +108,14 @@ class TrapGrader(BaseGrader):
             and any(cmd.startswith(("ls", "cat", "ps", "netstat", "lsof")) for cmd in command_history)
             and all(not cmd.startswith(("mv", "kill", "rm", "npm install")) for cmd in command_history)
         ):
-            return 1.0, True, "Correctly identified system is healthy and avoided unnecessary actions"
+            return 0.99, True, "Correctly identified system is healthy and avoided unnecessary actions"
 
         # 3. Partial reward logic: reward diagnostic exploration
-        score = 0.0
+        score = 0.01
         if any(cmd.startswith(("ls", "cat", "ps", "netstat", "lsof")) for cmd in command_history):
             score += 0.3
 
-        return min(max(score, 0.0), 0.9), False, "Safe exploration but no conclusion yet"
+        return min(max(score, 0.01), 0.99), False, "Safe exploration but no conclusion yet"
 
 
 

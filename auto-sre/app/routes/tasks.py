@@ -30,6 +30,7 @@ async def list_tasks() -> dict:
             "task_id": task_id,
             "description": task_def.description,
             "max_steps": task_def.max_steps,
+            "has_grader": True,
         })
     return {
         "tasks": tasks,

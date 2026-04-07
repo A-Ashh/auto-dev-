@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field, RootModel
 
 
 class Reward(RootModel[float]):
-    """Reward value between 0.0 and 1.0."""
-    root: float = Field(default=0.0, ge=0.0, le=1.0, description="Reward (0.0 – 1.0)")
+    """Reward value between 0.01 and 0.99."""
+    root: float = Field(default=0.01, ge=0.01, le=0.99, description="Reward (0.01 – 0.99)")
 
 
 class Observation(BaseModel):
@@ -27,7 +27,7 @@ class StepResponse(BaseModel):
     """Full response returned by the /step endpoint."""
 
     observation: Observation
-    reward: Reward = Field(default=Reward(0.0), description="Reward (0.0 – 1.0)")
+    reward: Reward = Field(default=Reward(0.01), description="Reward (0.01 – 0.99)")
     done: bool = Field(default=False, description="Whether the episode has ended")
     info: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 

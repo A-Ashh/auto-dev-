@@ -29,11 +29,11 @@ async def step_action(body: dict = Body(...)) -> Any:
             tool = "run_command"
 
         if not cmd:
-            return {"error": "Missing action arguments/command"}
+            raise HTTPException(status_code=400, detail="Missing action arguments/command")
 
         session = get_session()
         if not session.task_def:
-             return {"error": "NO_TASK_LOADED"}
+             raise HTTPException(status_code=400, detail="NO_TASK_LOADED")
 
         # Core logic (surgical integration with existing session)
         result = session.sandbox.execute(str(cmd))
@@ -60,4 +60,4 @@ async def step_action(body: dict = Body(...)) -> Any:
             }
         }
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=400, detail=str(e))

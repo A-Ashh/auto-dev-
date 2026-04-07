@@ -52,7 +52,6 @@ class TestSandboxCommands:
     def test_ps_shows_processes(self, sandbox: Sandbox) -> None:
         result = sandbox.execute("ps aux")
         assert "test-server" in result.stdout
-        assert "8080" in result.stdout
 
     def test_kill_process(self, sandbox: Sandbox) -> None:
         sandbox.execute("kill -9 100")

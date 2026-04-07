@@ -32,7 +32,7 @@ def _run_task_internally(task_id: str, commands: list[str]) -> dict:
     try:
         task_def = get_task(task_id)
     except KeyError as e:
-        return {"task_id": task_id, "reward": 0.0, "done": False, "error": str(e)}
+        return {"task_id": task_id, "reward": 0.01, "done": False, "error": str(e)}
 
     fs, pm = task_def.build_initial_state()
     sandbox = Sandbox(fs, pm)
@@ -84,9 +84,9 @@ async def run_baseline() -> dict:
         "aggregate": {
             "total_reward": round(float(total_reward), 4),
             "average_reward": round(float(avg_reward), 4),
-            "tasks_solved": sum(1 for r in results if r["reward"] == 1.0),
+            "tasks_solved": sum(1 for r in results if r["reward"] >= 0.99),
             "total_tasks": len(results),
-            "all_passed": all(r["reward"] == 1.0 for r in results),
+            "all_passed": all(r["reward"] >= 0.99 for r in results),
             "evaluation_time_seconds": elapsed,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
