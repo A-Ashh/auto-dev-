@@ -2,7 +2,7 @@
 title: Auto-SRE
 emoji: 🚨
 colorFrom: red
-colorTo: orange
+colorTo: yellow
 sdk: docker
 pinned: true
 tags:
