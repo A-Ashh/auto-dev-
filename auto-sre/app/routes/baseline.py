@@ -6,7 +6,6 @@ import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
-from app.routes._session import get_session
 
 router = APIRouter()
 
@@ -45,17 +44,22 @@ def _run_task_internally(task_id: str, commands: list[str]) -> dict:
             sandbox.execute(cmd)
         except (CommandNotAllowedError, StepTimeoutError):
             pass
+
         step_count += 1
+
         last_reward, done, _ = task_def.grader.grade(
             sandbox.fs, sandbox.pm, sandbox.command_history
         )
+
+        # 🔒 HARD CLAMP AFTER EVERY STEP
+        last_reward = max(0.01, min(0.99, float(last_reward)))
+
         if done:
             break
 
-    clamped_reward = max(0.01, min(0.99, float(last_reward)))
     return {
         "task_id": task_id,
-        "reward": clamped_reward,
+        "reward": last_reward,
         "done": done,
         "steps_taken": step_count,
     }
@@ -64,27 +68,36 @@ def _run_task_internally(task_id: str, commands: list[str]) -> dict:
 @router.get("/baseline", tags=["Evaluation"])
 async def run_baseline() -> dict:
     """
-    Run the deterministic hardcoded baseline agent on all 3 tasks internally.
+    Run the deterministic hardcoded baseline agent on all tasks internally.
     Returns reproducible baseline scores without requiring an OpenAI API key.
-    Full OpenAI LLM baseline: use scripts/run_baseline_agent.py with OPENAI_API_KEY set.
     """
     start_ts = time.monotonic()
     results = []
+
     for task_id, commands in SOLUTIONS.items():
         result = _run_task_internally(task_id, commands)
         results.append(result)
 
+    # 🔒 HARDEN ALL RESULTS (CRITICAL SAFETY LAYER)
+    for r in results:
+        r["reward"] = max(0.01, min(0.99, float(r.get("reward", 0.01))))
+
     elapsed = round(float(time.monotonic() - start_ts), 4)
+
+    # 🔒 SAFE AGGREGATION
     total_reward = sum(r["reward"] for r in results)
+    total_reward = max(0.01, min(0.99, float(total_reward)))
+
     avg_reward = total_reward / len(results) if results else 0.01
+    avg_reward = max(0.01, min(0.99, avg_reward))
 
     return {
         "baseline_agent": "hardcoded_deterministic",
         "description": "Reproducible baseline using known-correct solutions. Run scripts/run_baseline_agent.py with OPENAI_API_KEY for LLM evaluation.",
         "tasks": results,
         "aggregate": {
-            "total_reward": round(float(total_reward), 4),
-            "average_reward": round(float(avg_reward), 4),
+            "total_reward": round(total_reward, 4),
+            "average_reward": round(avg_reward, 4),
             "tasks_solved": sum(1 for r in results if r["reward"] >= 0.99),
             "total_tasks": len(results),
             "all_passed": all(r["reward"] >= 0.99 for r in results),
