@@ -58,14 +58,14 @@ def run_llm_episode(client: httpx.Client, task_id: str, task_desc: str) -> dict:
         from openai import OpenAI  # type: ignore
     except ImportError:
         print("  [WARN] openai package not installed. pip install openai")
-        return {"task_id": task_id, "reward": 0.0, "done": False, "error": "openai not installed"}
+        return {"task_id": task_id, "reward": 0.01, "done": False, "error": "openai not installed"}
 
     llm = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
 
     # Reset environment
     resp = client.post(f"{BASE_URL}/reset", json={"task_id": task_id})
     if resp.status_code != 200:
-        return {"task_id": task_id, "reward": 0.0, "done": False, "error": resp.text}
+        return {"task_id": task_id, "reward": 0.01, "done": False, "error": resp.text}
 
     hint = TASK_HINTS.get(task_id, "")
     messages = [
@@ -93,7 +93,7 @@ def run_llm_episode(client: httpx.Client, task_id: str, task_desc: str) -> dict:
 
     return {
         "task_id": task_id,
-        "reward": last.get("reward", 0.0),
+        "reward": max(0.01, min(0.99, float(last.get("reward", 0.01)))),
         "done": last.get("done", False),
         "steps_taken": last.get("info", {}).get("steps_taken", step_num + 1),
     }
@@ -104,7 +104,7 @@ def run_hardcoded_episode(client: httpx.Client, task_id: str) -> dict:
     commands = HARDCODED_SOLUTIONS[task_id]
     resp = client.post(f"{BASE_URL}/reset", json={"task_id": task_id})
     if resp.status_code != 200:
-        return {"task_id": task_id, "reward": 0.0, "done": False, "error": resp.text}
+        return {"task_id": task_id, "reward": 0.01, "done": False, "error": resp.text}
 
     last: dict = {}
     for cmd in commands:
@@ -114,7 +114,7 @@ def run_hardcoded_episode(client: httpx.Client, task_id: str) -> dict:
 
     return {
         "task_id": task_id,
-        "reward": last.get("reward", 0.0),
+        "reward": max(0.01, min(0.99, float(last.get("reward", 0.01)))),
         "done": last.get("done", False),
         "steps_taken": last.get("info", {}).get("steps_taken", len(commands)),
     }
@@ -162,7 +162,7 @@ def main() -> None:
         "results": results,
         "aggregate": {
             "average_reward": round(float(avg), 4),
-            "tasks_solved": sum(1 for r in results if r["reward"] == 1.0),
+            "tasks_solved": sum(1 for r in results if r["reward"] >= 0.99),
             "total_tasks": len(results),
         },
     }, indent=2))

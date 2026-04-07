@@ -37,7 +37,7 @@ def _run_task_internally(task_id: str, commands: list[str]) -> dict:
     fs, pm = task_def.build_initial_state()
     sandbox = Sandbox(fs, pm)
     step_count = 0
-    last_reward = 0.0
+    last_reward = 0.01
     done = False
 
     for cmd in commands:
@@ -52,9 +52,10 @@ def _run_task_internally(task_id: str, commands: list[str]) -> dict:
         if done:
             break
 
+    clamped_reward = max(0.01, min(0.99, float(last_reward)))
     return {
         "task_id": task_id,
-        "reward": last_reward,
+        "reward": clamped_reward,
         "done": done,
         "steps_taken": step_count,
     }
@@ -75,7 +76,7 @@ async def run_baseline() -> dict:
 
     elapsed = round(float(time.monotonic() - start_ts), 4)
     total_reward = sum(r["reward"] for r in results)
-    avg_reward = total_reward / len(results) if results else 0.0
+    avg_reward = total_reward / len(results) if results else 0.01
 
     return {
         "baseline_agent": "hardcoded_deterministic",

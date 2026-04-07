@@ -43,6 +43,9 @@ async def step_action(body: dict = Body(...)) -> Any:
         reward, done, grader_msg = session.task_def.grader.grade(
             session.sandbox.fs, session.sandbox.pm, session.sandbox.command_history
         )
+        # HARD CLAMP — no 0.0 or 1.0 can ever escape
+        reward = max(0.01, min(0.99, float(reward)))
+        assert 0.0 < reward < 1.0, f"Invalid reward: {reward}"
         session.is_done = done or (session.step_count >= session.task_def.max_steps)
 
         return {

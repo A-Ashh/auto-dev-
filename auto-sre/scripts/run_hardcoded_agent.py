@@ -19,7 +19,7 @@ SOLUTIONS: dict[str, list[str]] = {
 
 
 def run_hardcoded_agent() -> None:
-    """Run the solution agent and verify 1.0 reward for every task."""
+    """Run the solution agent and verify 0.99 reward for every task."""
     client = httpx.Client(base_url=BASE_URL, timeout=10.0)
     all_passed = True
 
@@ -42,8 +42,8 @@ def run_hardcoded_agent() -> None:
             print(f"  > {cmd}")
             print(f"    reward={last_response['reward']}, done={last_response['done']}")
 
-        if last_response and last_response["reward"] == 1.0 and last_response["done"]:
-            print(f"  [PASS] {task_id}: PASSED (reward=1.0)")
+        if last_response and last_response["reward"] >= 0.99 and last_response["done"]:
+            print(f"  [PASS] {task_id}: PASSED (reward>=0.99)")
         else:
             print(f"  [FAIL] {task_id}: FAILED (reward={last_response['reward'] if last_response else 'N/A'})")
             all_passed = False

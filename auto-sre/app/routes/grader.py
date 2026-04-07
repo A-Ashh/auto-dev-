@@ -22,9 +22,10 @@ async def get_grader_score() -> dict:
         session.sandbox.command_history,
     )
 
+    clamped_reward = max(0.01, min(0.99, float(reward)))
     return {
         "task_id": session.task_def.task_id,
-        "reward": reward,
+        "reward": clamped_reward,
         "done": done,
         "grader_message": grader_message,
         "step_count": session.step_count,
