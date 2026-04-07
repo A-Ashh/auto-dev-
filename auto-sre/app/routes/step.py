@@ -44,8 +44,10 @@ async def step_action(body: dict = Body(...)) -> Any:
             session.sandbox.fs, session.sandbox.pm, session.sandbox.command_history
         )
         # HARD CLAMP — no 0.0 or 1.0 can ever escape
-        reward = max(0.01, min(0.99, float(reward)))
-        assert 0.0 < reward < 1.0, f"Invalid reward: {reward}"
+        reward = float(reward)
+        reward = max(0.01, min(0.99, reward))
+        assert 0.0 < reward < 1.0, f"INVALID REWARD LEAK: {reward}"
+        print("FINAL REWARD BEFORE RETURN:", reward, flush=True)
         session.is_done = done or (session.step_count >= session.task_def.max_steps)
 
         return {
@@ -63,4 +65,18 @@ async def step_action(body: dict = Body(...)) -> Any:
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        reward = 0.01
+        return {
+            "observation": {
+                "stdout": "",
+                "stderr": str(e),
+                "cwd": "/",
+                "health_status": False
+            },
+            "reward": Reward(reward),
+            "done": True,
+            "info": {
+                "steps_taken": 0,
+                "grader_message": f"Exception occurred: {str(e)}"
+            }
+        }
