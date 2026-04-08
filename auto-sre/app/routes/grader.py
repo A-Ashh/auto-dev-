@@ -32,6 +32,7 @@ async def get_grader_score() -> dict:
         return {
             "task_id": None,
             "reward": _SCORE_MIN,
+            "score": _SCORE_MIN,
             "done": True,
             "grader_message": "No task loaded",
             "step_count": 0,
@@ -51,6 +52,7 @@ async def get_grader_score() -> dict:
     return {
         "task_id": session.task_def.task_id,
         "reward": reward,
+        "score": reward,
         "done": done,
         "grader_message": grader_message,
         "step_count": session.step_count,

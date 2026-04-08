@@ -70,6 +70,7 @@ async def step_action(body: dict = Body(...)) -> Any:
                 "health_status": done
             },
             "reward": reward,
+            "score": reward,
             "done": session.is_done,
             "info": {
                 "steps_taken": session.step_count,
@@ -85,6 +86,7 @@ async def step_action(body: dict = Body(...)) -> Any:
                 "health_status": False
             },
             "reward": _SCORE_MIN,
+            "score": _SCORE_MIN,
             "done": True,
             "info": {
                 "steps_taken": 0,

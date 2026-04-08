@@ -72,6 +72,7 @@ def _run_task_internally(task_id: str, commands: list[str]) -> dict:
     return {
         "task_id": task_id,
         "reward": last_reward,
+        "score": last_reward,
         "done": done,
         "steps_taken": step_count,
     }
