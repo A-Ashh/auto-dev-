@@ -164,7 +164,7 @@ def main():
     print("\nRESULTS:")
     print(json.dumps({
         "results": results,
-        "average_reward": round(avg, 6),
+        "average_reward": avg,
     }, indent=2))
 
 

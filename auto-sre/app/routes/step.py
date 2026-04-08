@@ -27,7 +27,7 @@ def _safe_reward(raw) -> float:
     return r
 
 
-@router.post("/step", response_model=StepResponse)
+@router.post("/step")
 async def step_action(body: dict = Body(...)) -> Any:
     """Execute a shell command and return the resulting observation and reward."""
     try:
