@@ -9,8 +9,8 @@ from openai import OpenAI
 from typing import List, Optional
 
 # --- Safe score clamp (internal use) ---
-_SCORE_MIN = 1e-6
-_SCORE_MAX = 1 - 1e-6
+_SCORE_MIN = 0.01
+_SCORE_MAX = 0.99
 
 def _safe_score(raw) -> float:
     try:
@@ -27,12 +27,12 @@ def safe_score(x: float) -> float:
         
     val = float(x)
     
-    # Prevent rounding to 1.00
+    # Prevent rounding to 1.00 via .2f
     if val >= 0.995:
         val = 0.989
         
-    # Prevent 0.00
-    if val <= 0.0:
+    # Prevent rounding to 0.00 via .2f (catches 1e-6, 0.001, etc.)
+    if val < 0.005:
         val = 0.01
         
     return val
