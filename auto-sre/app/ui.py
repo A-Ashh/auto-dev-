@@ -2,7 +2,10 @@
 
 import httpx
 import asyncio
+import os
 import gradio as gr  # type: ignore
+
+from openai import AsyncOpenAI
 
 # The API base URL on which the app internally runs natively alongside the UI
 API_BASE = "http://127.0.0.1:7860"
@@ -107,7 +110,76 @@ CSS = """
     font-weight: bold;
     text-shadow: 0 0 10px rgba(239,68,68,0.5);
 }
+
+/* AI Copilot Hint */
+.ai-hint-box {
+    background: rgba(147, 51, 234, 0.15);
+    border-left: 4px solid #9333ea;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 12px;
+    font-size: 0.95em;
+    color: #e9d5ff;
+}
+.ai-hint-title {
+    font-weight: bold;
+    color: #c084fc;
+    margin-bottom: 4px;
+}
 """
+
+FALLBACK_HINTS = {
+    "t1_config": "Check /etc/app for missing config files.",
+    "t2_port": "Look for processes using port 8080.",
+    "t3_dep": "Check if dependencies are installed.",
+    "t4_trap": "Verify before making changes.",
+    "t5_disk_full": "Check large files in /var/log.",
+    "t6_oom_killer": "Look for memory-heavy processes.",
+}
+
+async def fetch_ai_copilot_hint(task_id: str, history_html: str):
+    """Securely fetch UI-only hint from LLM or fallback."""
+    if not task_id:
+        return history_html
+    
+    # Clean up history_html to raw text roughly for LLM prompt
+    import re
+    raw_history = re.sub(r'<[^>]+>', '\n', history_html).strip()
+    if not raw_history:
+        raw_history = "No commands executed yet."
+        
+    prompt = f"""You are a senior Site Reliability Engineer helping debug a system.
+
+Task:
+{task_id}
+
+Recent command trace:
+{raw_history[-500:]}
+
+Give a short hint (1–2 lines).
+Do NOT give the full solution.
+Guide the next step."""
+
+    hint_text = FALLBACK_HINTS.get(task_id, "Explore the system using ls, ps, and cat.")
+    try:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            client = AsyncOpenAI(api_key=api_key, base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"))
+            resp = await client.chat.completions.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=64,
+                timeout=5.0
+            )
+            val = resp.choices[0].message.content
+            if val:
+                hint_text = val.strip()
+    except Exception:
+        pass # silently fallback
+        
+    # Render hint
+    h_entry = f"<div class='ai-hint-box'><div class='ai-hint-title'>🤖 AI Copilot Hint</div>{hint_text}</div>"
+    return h_entry + history_html
 
 async def api_reset(task_id: str):
     """Call the backend reset API and initialize the terminal UI."""
@@ -244,6 +316,9 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
             
             submit_btn = gr.Button("Execute Command ⚡", variant="primary")
             
+            gr.HTML("<div style='margin-top: 15px;'></div>")
+            copilot_btn = gr.Button("🤖 Ask AI Copilot for Hint", elem_classes="analyze-btn")
+            
         # Right Panel (History - 20%)
         with gr.Column(scale=2):
             gr.HTML("<h3>📜 Command Log</h3>")
@@ -263,3 +338,10 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
             inputs=[cmd_input, terminal_out, cwd_state, history_html],
             outputs=[terminal_out, cmd_input, cwd_state, score_display, health_display, history_html]
         )
+
+    # Copilot button triggers independent hint fetch
+    copilot_btn.click(
+        fn=fetch_ai_copilot_hint,
+        inputs=[task_dropdown, history_html],
+        outputs=[history_html]
+    )
