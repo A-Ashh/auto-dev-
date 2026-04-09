@@ -1,8 +1,11 @@
-"""Gradio UI for Auto-SRE Premium Dashboard."""
+"""Gradio UI for Auto-SRE Interactive Sandbox Dashboard."""
 
-import time
-import random
+import httpx
+import asyncio
 import gradio as gr  # type: ignore
+
+# The API base URL on which the app internally runs natively alongside the UI
+API_BASE = "http://127.0.0.1:7860"
 
 CSS = """
 .gradio-container {
@@ -30,138 +33,27 @@ CSS = """
     padding: 20px;
     margin-bottom: 20px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    opacity: 0;
-    transform: translateY(20px);
 }
 
-@keyframes slideUp {
-    to { opacity: 1; transform: translateY(0); }
+.terminal-box textarea {
+    background: #000000 !important;
+    color: #34d399 !important;
+    font-family: 'Fira Code', monospace !important;
+    border: 1px solid rgba(52, 211, 153, 0.3) !important;
+    border-radius: 8px !important;
 }
 
-/* Specific Card Layouts */
-.card-insight { border-left: 4px solid #a855f7; }
-.card-analysis { border-left: 4px solid #3b82f6; }
-.card-cause { border-left: 4px solid #f97316; }
-.card-fix { border-left: 4px solid #10b981; }
-
-.section-title {
-    font-size: 0.85em;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 12px;
-}
-.title-insight { color: #d8b4fe; }
-.title-analysis { color: #93c5fd; }
-.title-cause { color: #fdba74; }
-.title-fix { color: #6ee7b7; }
-.title-cmd { color: #c4b5fd; margin-bottom: 16px; display: block; }
-
-/* AI Personality Header */
-.ai-header {
-    font-size: 1.3em;
-    font-weight: 600;
-    color: #e0e7ff;
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    text-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
-}
-
-/* Animated Gradient Progress Bar */
-.progress-bg {
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 99px;
-    height: 12px;
-    width: 100%;
-    margin-right: 16px;
-    overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-.progress-fill {
-    background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
-    height: 100%;
-    border-radius: 99px;
-    width: 0%; /* Animates to final width */
-    transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
-}
-
-/* Severity Badges */
-.badge {
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 800;
-    font-size: 0.9em;
-    letter-spacing: 1px;
-    display: inline-block;
-}
-.badge-high {
-    background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
-    border: 1px solid #ef4444;
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
-}
-.badge-med {
-    background: rgba(234, 179, 8, 0.15);
-    color: #fef08a;
-    border: 1px solid #eab308;
-    box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
-}
-
-/* Command Blocks */
-.cmd-block {
-    position: relative;
-    background: #0f172a;
-    padding: 16px;
-    border-radius: 8px;
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-}
-.cmd-code {
-    font-family: 'Fira Code', monospace;
-    color: #34d399;
-    font-size: 0.95em;
-    overflow-x: auto;
-}
-.copy-btn {
-    background: rgba(99, 102, 241, 0.2);
-    border: 1px solid rgba(99, 102, 241, 0.5);
-    color: #e0e7ff;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.8em;
-    font-weight: bold;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-.copy-btn:hover {
-    background: rgba(99, 102, 241, 0.4);
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
-}
-
-/* Inputs & Buttons Glows */
-#issue-box textarea {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 2px solid rgba(99, 102, 241, 0.3) !important;
-    border-radius: 12px !important;
-    padding: 20px !important;
+.terminal-input textarea {
+    background: #1e293b !important;
     color: #f8fafc !important;
-    font-size: 1.1em !important;
-    transition: all 0.3s ease !important;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.5) !important;
+    font-family: 'Fira Code', monospace !important;
+    border: 2px solid rgba(99, 102, 241, 0.5) !important;
+    border-radius: 8px !important;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5) !important;
 }
-#issue-box textarea:focus {
+.terminal-input textarea:focus {
     border-color: #818cf8 !important;
-    box-shadow: 0 0 25px rgba(99, 102, 241, 0.3), inset 0 0 15px rgba(99, 102, 241, 0.2) !important;
-    outline: none !important;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.4) !important;
 }
 
 .analyze-btn {
@@ -169,213 +61,205 @@ CSS = """
     border: none !important;
     color: white !important;
     font-weight: 800 !important;
-    font-size: 1.15em !important;
-    border-radius: 12px !important;
-    padding: 14px 0 !important;
-    margin-top: 24px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 0 15px rgba(147, 51, 234, 0.4) !important;
     transition: all 0.3s ease !important;
-    box-shadow: 0 0 20px rgba(147, 51, 234, 0.5) !important;
 }
 .analyze-btn:hover {
-    box-shadow: 0 0 30px rgba(147, 51, 234, 0.8) !important;
+    box-shadow: 0 0 25px rgba(147, 51, 234, 0.7) !important;
     transform: translateY(-2px);
 }
 
-.suggestion-btn {
-    background: rgba(30, 41, 59, 0.5) !important;
-    border: 1px solid rgba(148, 163, 184, 0.2) !important;
-    color: #cbd5e1 !important;
-    transition: all 0.2s !important;
+.history-panel {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    height: 100%;
 }
-.suggestion-btn:hover {
-    background: rgba(99, 102, 241, 0.2) !important;
-    border-color: #818cf8 !important;
-    color: #ffffff !important;
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.3) !important;
+.history-item {
+    font-family: monospace;
+    color: #a5b4fc;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 8px;
+}
+.history-out {
+    color: #94a3b8;
+    font-size: 0.9em;
+    white-space: pre-wrap;
 }
 
-/* Thinking Loader Animation */
-.loader-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 24px;
+.score-display {
+    font-size: 2.5em;
+    font-weight: 900;
+    color: #34d399;
+    text-shadow: 0 0 20px rgba(52, 211, 153, 0.5);
 }
-.loader-spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid rgba(99, 102, 241, 0.2);
-    border-top-color: #818cf8;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    box-shadow: 0 0 20px rgba(129, 140, 248, 0.5);
+
+.health-good {
+    color: #34d399;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(52,211,153,0.5);
 }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-.loader-text {
-    font-size: 1.4em;
-    font-weight: 600;
-    color: #e0e7ff;
-    text-shadow: 0 0 10px rgba(129, 140, 248, 0.6);
-    letter-spacing: 1px;
+.health-bad {
+    color: #ef4444;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(239,68,68,0.5);
 }
 """
 
-def generate_commands_html(cmds_str: str) -> str:
-    """Wrap each command in its own styled block with a copy button."""
-    blocks = []
-    for cmd in cmds_str.strip().split('\n'):
-        if not cmd.strip(): continue
-        # Escape quotes for JS inline
-        escaped_cmd = cmd.replace("'", "\\'").replace('"', '&quot;')
-        block = f"""
-        <div class="cmd-block">
-            <code class="cmd-code">{cmd}</code>
-            <button class="copy-btn" onclick="navigator.clipboard.writeText('{escaped_cmd}'); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy', 2000)">Copy</button>
-        </div>
-        """
-        blocks.append(block)
-    return "\n".join(blocks)
-
-
-def simulate_analysis(issue: str):
-    if not issue.strip():
-        yield "<div class='glass-panel'><h3 style='color:#fca5a5;'>⚠️ Please describe an issue to begin.</h3></div>"
-        return
-
-    # Animated AI Thinking Phases with 1.5s delay
-    phases = [
-        "📡 Analyzing telemetry...",
-        "🔍 Detecting anomaly...",
-        "⚙️ Generating fix plan..."
-    ]
-
-    for phase in phases:
-        yield f"""
-        <div class="loader-container">
-            <div class="loader-spinner"></div>
-            <div class="loader-text">{phase}</div>
-        </div>
-        """
-        time.sleep(1.6)
-
-    # Output Formulation
-    issue_lower = issue.lower()
-    conf = random.randint(88, 98)
-
-    if "cpu" in issue_lower:
-        insight = "Critical CPU saturation detected on vSphere-Node-3. System telemetry indicates a rogue phantom process is bypassing namespace constraints."
-        analysis = "Identified abnormal resource utilization on `worker-node-3`. The telemetry graph shows a sustained 99.8% CPU bound constraint aligning perfectly with the latest auto-scaling event."
-        rc = "Rogue phantom process loop in the data ingestion worker."
-        sev = "<div class='badge badge-high'>[ 🔴 HIGH RISK ]</div>"
-        fix = "1. Isolate worker-node-3 from load balancer\n2. Locate and kill the rogue process\n3. Patch CPU cgroup limits via DaemonSet config"
-        cmds = "kubectl cordon worker-node-3\nkill -9 $(pgrep phantom.sh)"
-    elif "500" in issue_lower or "api" in issue_lower:
-        insight = "Immediate database exhaustion identified. The API gateway is failing to route requests because the backend `auth-service` connection pool is entirely occupied."
-        analysis = "Traced ingress routes revealing high latencies and direct 500 error cascades terminating at PostgreSQL."
-        rc = "Database connection pool exhausted due to unclosed sessions in the auth layer."
-        sev = "<div class='badge badge-high'>[ 🔴 HIGH RISK ]</div>"
-        fix = "1. Scale up PgBouncer replicas\n2. Restart auth-service pods immediately\n3. Rollback recent authentication PR #492"
-        cmds = "kubectl rollout restart deploy/auth-api\npsql -c 'SELECT pg_terminate_backend(pid...)'"
-    else:
-        insight = "Deployment lifecycle interrupted. Kubelet logs confirm the container runtime is instantly crashing upon starting the main entrypoint."
-        analysis = "Analyzed kubelet event streams and container exit codes (137/1). Found immediate boot failure loops associated with missing runtime binaries."
-        rc = "Missing Node.js package dependencies causing application boot crash loops."
-        sev = "<div class='badge badge-med'>[ 🟡 MEDIUM ]</div>"
-        fix = "1. Re-run npm install in build directory to restore node_modules\n2. Verify package-lock.json hashes against registry\n3. Restart application daemon"
-        cmds = "cd /home/user/app && npm install\npm2 restart all"
-         
-    cmd_html = generate_commands_html(cmds)
-
-    yield f"""
-    <!-- Final Premium Output Structure -->
-    
-    <div class="ai-header">
-        🤖 Auto-SRE Insight: <span style="font-weight: 400; color: #a5b4fc; font-style: italic;">{insight}</span>
-    </div>
-
-    <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; margin-bottom: 20px;'>
-        <!-- Severity Card -->
-        <div class="output-card" style="margin-bottom: 0; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; animation-delay: 0.1s;">
-            <div class="section-title" style="color:#94a3b8;">System Severity</div>
-            {sev}
-        </div>
+async def api_reset(task_id: str):
+    """Call the backend reset API and initialize the terminal UI."""
+    if not task_id:
+        return "Please select a task.", "", 0.0, "<span class='health-bad'>🔴 BROKEN</span>", "Select a task first."
         
-        <!-- Confidence Card -->
-        <div class="output-card card-insight" style="margin-bottom: 0; display:flex; flex-direction:column; justify-content:center; animation-delay: 0.2s;">
-            <div class="section-title title-insight" style="display:flex; justify-content:space-between;">
-                <span>AI Confidence Score</span>
-                <span style="font-size: 1.4em; color: #fff;">{conf}%</span>
-            </div>
-            <div class="progress-bg">
-                <!-- Trigger width transition smoothly initialized from 0 to target % via HTML injection -->
-                <div class="progress-fill" style="width: {conf}%;"></div>
-            </div>
-        </div>
-    </div>
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(f"{API_BASE}/reset", json={"task_id": task_id})
+            resp.raise_for_status()
+            data = resp.json()
+            
+            cwd = data.get("cwd", "/home/user")
+            health = data.get("health_status", False)
+            
+            term_out = f"=== Auto-SRE Sandbox Initialized ===\nWelcome to Scenario: {task_id}\nHint: Type shell commands to diagnose and repair.\n\n$ {cwd} > "
+            
+            health_str = "<span class='health-good'>🟢 HEALTHY</span>" if health else "<span class='health-bad'>🔴 BROKEN</span>"
+            
+            return term_out, cwd, 0.01, health_str, "Environment Reset: " + task_id
+            
+        except Exception as e:
+            term_out = f"Error connecting to backend API: {e}\nIs the backend running at {API_BASE}?"
+            return term_out, "", 0.0, "<span class='health-bad'>🔴 API ERROR</span>", ""
 
-    <!-- Analysis -->
-    <div class="output-card card-analysis" style="animation-delay: 0.3s;">
-        <div class="section-title title-analysis">🔍 Analysis</div>
-        <div style="font-size:1.1em; line-height:1.6; color:#e2e8f0;">{analysis}</div>
-    </div>
-    
-    <!-- Root Cause -->
-    <div class="output-card card-cause" style="animation-delay: 0.4s;">
-        <div class="section-title title-cause">⚠️ Root Cause</div>
-        <div style="font-size:1.1em; line-height:1.6; color:#fed7aa;">{rc}</div>
-    </div>
+async def api_step(cmd_input: str, term_history: str, current_cwd: str, history_html: str):
+    """Call the backend step API with the latest shell command and update scoreboard."""
+    if not current_cwd:
+        return term_history, "", term_history, 0.0, "<span class='health-bad'>🔴 START TASK FIRST</span>", history_html
+        
+    if not cmd_input.strip():
+        # Empty command handling
+        term_out = term_history + "\n$ " + current_cwd + " > "
+        return term_out, "", current_cwd, gr.update(), gr.update(), history_html
 
-    <!-- Fix Plan -->
-    <div class="output-card card-fix" style="animation-delay: 0.5s;">
-        <div class="section-title title-fix">✅ Fix Plan</div>
-        <pre style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; color: #a7f3d0; margin:0; border: 1px solid rgba(16,185,129,0.2); font-family: system-ui; font-size: 1.05em; line-height:1.6;">{fix}</pre>
-    </div>
-    
-    <!-- Commands -->
-    <div style="margin-top: 24px; animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; animation-delay: 0.6s;">
-        <span class="section-title title-cmd">⚙️ Executable Commands</span>
-        {cmd_html}
-    </div>
-    """
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(f"{API_BASE}/step", json={
+                "tool": "run_command", "arguments": cmd_input
+            })
+            resp.raise_for_status()
+            data = resp.json()
+            
+            stdout = data.get("stdout", "")
+            stderr = data.get("stderr", "")
+            new_cwd = data.get("cwd", current_cwd)
+            health = data.get("health_status", False)
+            reward = data.get("reward", 0.01)
+            done = data.get("done", False)
+            
+            # Combine formatting
+            cmd_echo = f"{cmd_input}\n"
+            obs_out = ""
+            if stdout:
+                obs_out += stdout
+                if not stdout.endswith("\\n"): obs_out += "\\n"
+            if stderr:
+                obs_out += f"STDERR: {stderr}"
+                if not stderr.endswith("\\n"): obs_out += "\\n"
+                
+            term_out = term_history + cmd_echo + obs_out + f"$ {new_cwd} > "
+            
+            # Formulate the updated History Log display
+            h_entry = f"<div class='history-item'><b>> {cmd_input}</b><br><span class='history-out'>{obs_out}</span></div>"
+            new_history_html = h_entry + history_html
+            
+            health_str = "<span class='health-good'>🟢 HEALTHY (PASS)</span>" if health else "<span class='health-bad'>🔴 BROKEN</span>"
+            if done and not health:
+                health_str = "<span class='health-bad'>❌ FAILED / OVER</span>"
+            
+            return term_out, "", new_cwd, reward, health_str, new_history_html
+            
+        except Exception as e:
+            term_out = term_history + f"{cmd_input}\n[HTTPX ERROR: {e}]\n$ {current_cwd} > "
+            h_entry = f"<div class='history-item'><b>> {cmd_input}</b><br><span class='history-out'>[ERROR: {e}]</span></div>"
+            return term_out, "", current_cwd, 0.0, "<span class='health-bad'>🔴 API ERROR</span>", h_entry + history_html
 
 
 _theme = gr.themes.Base(primary_hue="indigo", neutral_hue="slate")
 
-with gr.Blocks(css=CSS, theme=_theme) as demo:
+with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
+    gr.HTML("""
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #ffffff; font-weight: 800; font-size: 2.5em; text-shadow: 0 0 20px rgba(99,102,241,0.6);">
+            🚨 Auto-SRE Engine Terminal
+        </h1>
+        <p style="color: #94a3b8; font-size: 1.1em;">Live Diagnostic & Repair Interactive Sandbox</p>
+    </div>
+    """)
+    
     with gr.Row(equal_height=True):
-        
-        # Left Panel (40%)
-        with gr.Column(scale=4):
+        # Left Panel (Scoreboard & Controls - 30%)
+        with gr.Column(scale=3):
             with gr.Column(elem_classes="glass-panel"):
-                gr.HTML("""
-                <h1 style="color: #ffffff; font-weight: 800; font-size: 2em; letter-spacing: -0.5px; text-shadow: 0 0 20px rgba(99,102,241,0.6); margin-bottom: 24px;">
-                    🧠 Describe Incident
-                </h1>
-                """)
+                gr.HTML("<h3 style='margin-bottom: 20px;'>🕹️ Task Control</h3>")
                 
-                issue_input = gr.Textbox(lines=7, label="", placeholder="Paste logs, describe metrics, or report anomalies here...", elem_id="issue-box", show_label=False)
+                task_dropdown = gr.Dropdown(
+                    choices=["t1_config", "t2_port", "t3_dep", "t4_trap"],
+                    label="Select Scenario",
+                    value="t1_config"
+                )
+                reset_btn = gr.Button("🔄 Initialize Sandbox", elem_classes="analyze-btn")
                 
-                gr.HTML("<div style='margin-top: 24px; margin-bottom: 12px; font-size: 0.85em; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;'>Quick Diagnostics</div>")
+                system_msg = gr.HTML("<span style='color: #94a3b8;'>Environment not started.</span>")
                 
-                with gr.Row():
-                    btn1 = gr.Button("CPU spike", elem_classes="suggestion-btn", size="sm")
-                    btn2 = gr.Button("API 500 error", elem_classes="suggestion-btn", size="sm")
-                    btn3 = gr.Button("Container crash", elem_classes="suggestion-btn", size="sm")
-                    
-                analyze_btn = gr.Button("🚀 Trigger AI Diagnostics", elem_classes="analyze-btn")
+                gr.Markdown("---")
                 
-                btn1.click(lambda: "Urgent: I'm seeing a massive CPU spike on worker node 3. Things are slowing down to a crawl.", None, issue_input)
-                btn2.click(lambda: "Alert: Increased API 500 errors from the billing service endpoint observed over the last 15 minutes.", None, issue_input)
-                btn3.click(lambda: "Deploy failed: The Node.js container keeps crashing continuously upon boot.", None, issue_input)
+                gr.HTML("<h3 style='margin-bottom: 10px; margin-top:20px;'>🏆 Reward Score</h3>")
+                score_display = gr.Number(value=0.01, show_label=False, interactive=False, elem_classes="score-display")
+                
+                gr.HTML("<h3 style='margin-bottom: 10px; margin-top:20px;'>🏥 System Health</h3>")
+                health_display = gr.HTML("<span class='health-bad'>🔴 STANDBY</span>")
+                
+        # Middle Panel (Terminal - 50%)
+        with gr.Column(scale=5):
+            gr.HTML("<h3>💻 Web Terminal</h3>")
             
-        # Right Panel (60%)
-        with gr.Column(scale=6):
-            output_html = gr.HTML("""
-            <div style='display:flex; height:100%; min-height:600px; align-items:center; justify-content:center; border: 2px dashed rgba(99,102,241,0.3); border-radius: 16px; background: rgba(0,0,0,0.2);'>
-                <h3 style='color:#64748b; font-family: "Fira Code", monospace; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,0,0,0.5);'>[ WAITING FOR TELEMETRY INPUT ]</h3>
-            </div>
-            """)
+            cwd_state = gr.State("")
             
-    analyze_btn.click(fn=simulate_analysis, inputs=issue_input, outputs=output_html)
+            terminal_out = gr.Textbox(
+                lines=15, 
+                value="[ SYSTEM OFFLINE ]\nPlease initialize a sandbox task from the control panel.", 
+                interactive=False, 
+                show_label=False, 
+                elem_classes="terminal-box"
+            )
+            
+            cmd_input = gr.Textbox(
+                lines=1,
+                placeholder="Type shell command (e.g. ls, ps aux, kill, mv) and press Enter...",
+                show_label=False,
+                elem_classes="terminal-input"
+            )
+            
+            submit_btn = gr.Button("Execute Command ⚡", variant="primary")
+            
+        # Right Panel (History - 20%)
+        with gr.Column(scale=2):
+            gr.HTML("<h3>📜 Command Log</h3>")
+            history_html = gr.HTML("", elem_classes="history-panel")
+
+    # Event Bindings
+    reset_btn.click(
+        fn=api_reset,
+        inputs=[task_dropdown],
+        outputs=[terminal_out, cwd_state, score_display, health_display, system_msg]
+    )
+    
+    # Submitting command triggers execution and wipes input box
+    for event in [cmd_input.submit, submit_btn.click]:
+        event(
+            fn=api_step,
+            inputs=[cmd_input, terminal_out, cwd_state, history_html],
+            outputs=[terminal_out, cmd_input, cwd_state, score_display, health_display, history_html]
+        )
