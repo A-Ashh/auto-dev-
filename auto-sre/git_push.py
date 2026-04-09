@@ -6,7 +6,7 @@ print("Adding files...")
 os.system("git add .")
 
 print("Committing...")
-os.system("git commit -m \"chore: remove reference environments before final submission\"")
+os.system("git commit -m \"chore: remove duplicate inference.py and openenv.yaml from subfolder\"")
 
 print("Pushing to origin...")
 os.system("git push origin main")
