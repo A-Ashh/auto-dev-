@@ -129,13 +129,86 @@ CSS = """
 """
 
 FALLBACK_HINTS = {
-    "t1_config": "Check /etc/app for missing config files.",
-    "t2_port": "Look for processes using port 8080.",
-    "t3_dep": "Check if dependencies are installed.",
-    "t4_trap": "Verify before making changes.",
-    "t5_disk_full": "Check large files in /var/log.",
-    "t6_oom_killer": "Look for memory-heavy processes.",
+    "t1_config": "Check /etc/app for missing or misnamed config files.",
+    "t2_port": "Look for processes using port 8080 with `ps` or `netstat`.",
+    "t3_dep": "Check if node_modules exist. Try running `npm install`.",
+    "t4_trap": "Don't change anything yet — verify the system state first.",
+    "t5_disk_full": "Check large log files in /var/log. Use `ls` or `find`.",
+    "t6_oom_killer": "Look for memory-heavy processes using `ps` and kill the rogue one.",
 }
+
+TASK_DESCRIPTIONS = {
+    "t1_config": "⚙️ Config file is missing or misnamed. The app cannot start. Find and restore the correct config.",
+    "t2_port": "🔌 Port 8080 is occupied by a rogue process. The web server cannot bind. Identify and kill the blocker.",
+    "t3_dep": "📦 Node.js dependencies are missing. The app crashes on startup. Install the required packages.",
+    "t4_trap": "🪤 Trap scenario — the system may already be healthy. Investigate before taking any action.",
+    "t5_disk_full": "💾 Disk is 100% full due to a massive log file in /var/log. Identify and remove it to restore service.",
+    "t6_oom_killer": "🧠 A rogue process is leaking memory, triggering OOM killer. Find and terminate the memory hog.",
+}
+
+DEMO_SOLUTIONS = {
+    "t1_config": ["ls /etc/app", "mv /etc/app/conf.bak /etc/app/conf"],
+    "t2_port": ["ps", "kill -9 512"],
+    "t3_dep": ["ls /home/user/app", "npm install"],
+    "t4_trap": ["ls /etc/app", "ps"],
+    "t5_disk_full": ["ls /var/log", "rm /var/log/syslog"],
+    "t6_oom_killer": ["ps", "kill 999"],
+}
+
+def update_task_description(task_id: str) -> str:
+    """Return HTML for the selected task's description."""
+    desc = TASK_DESCRIPTIONS.get(task_id, "Select a scenario to see its description.")
+    return f"<div style='background:rgba(99,102,241,0.12);border-left:4px solid #6366f1;border-radius:6px;padding:12px;color:#c7d2fe;font-size:0.95em;margin-top:10px;'><b>📌 Task:</b> {desc}</div>"
+
+
+async def run_demo(task_id: str):
+    """Auto-run the known solution commands for the selected task."""
+    if not task_id:
+        return "Select a task first.", "", 0.01, "<span class='health-bad'>🔴 STANDBY</span>", ""
+
+    # Step 1: Reset
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(f"{API_BASE}/reset", json={"task_id": task_id})
+            resp.raise_for_status()
+            data = resp.json()
+            cwd = data.get("cwd", "/home/user")
+        except Exception as e:
+            return f"Demo failed during reset: {e}", "", 0.01, "<span class='health-bad'>🔴 ERROR</span>", ""
+
+    term_out = f"=== 🎬 DEMO MODE ===\nTask: {task_id}\nRunning optimal solution...\n\n"
+    history_html = ""
+    reward = 0.01
+    health_str = "<span class='health-bad'>🔴 BROKEN</span>"
+
+    cmds = DEMO_SOLUTIONS.get(task_id, [])
+    async with httpx.AsyncClient() as client:
+        for cmd in cmds:
+            try:
+                resp = await client.post(f"{API_BASE}/step", json={"tool": "run_command", "arguments": cmd})
+                resp.raise_for_status()
+                d = resp.json()
+                stdout = d.get("stdout", "")
+                stderr = d.get("stderr", "")
+                reward = d.get("reward", reward)
+                health = d.get("health_status", False)
+                done = d.get("done", False)
+                cwd = d.get("cwd", cwd)
+
+                obs = stdout or stderr or ""
+                term_out += f"$ {cmd}\n{obs}\n"
+                h_entry = f"<div class='history-item'><b>> {cmd}</b><br><span class='history-out'>{obs}</span></div>"
+                history_html = h_entry + history_html
+
+                if done:
+                    health_str = "<span class='health-good'>🟢 HEALTHY (PASS)</span>" if health else "<span class='health-bad'>❌ FAILED</span>"
+                    break
+            except Exception as e:
+                term_out += f"$ {cmd}\n[ERROR: {e}]\n"
+
+    term_out += f"\n=== Demo Complete | Reward: {reward:.3f} ==="
+    return term_out, cwd, reward, health_str, history_html
+
 
 async def fetch_ai_copilot_hint(task_id: str, history_html: str):
     """Securely fetch UI-only hint from LLM or fallback."""
@@ -281,7 +354,9 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
                     label="Select Scenario",
                     value="t1_config"
                 )
+                task_desc_display = gr.HTML(update_task_description("t1_config"))
                 reset_btn = gr.Button("🔄 Initialize Sandbox", elem_classes="analyze-btn")
+                demo_btn = gr.Button("▶ Run Demo", variant="secondary")
                 
                 system_msg = gr.HTML("<span style='color: #94a3b8;'>Environment not started.</span>")
                 
@@ -296,6 +371,14 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
         # Middle Panel (Terminal - 50%)
         with gr.Column(scale=5):
             gr.HTML("<h3>💻 Web Terminal</h3>")
+            gr.HTML("""
+            <div style='background:rgba(15,23,42,0.7);border:1px solid rgba(99,102,241,0.25);border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:0.88em;color:#94a3b8;'>
+                <b style='color:#a5b4fc;'>💡 Quick Commands:</b>&nbsp;&nbsp;
+                <code>ls</code> &nbsp;·&nbsp; <code>ps</code> &nbsp;·&nbsp; <code>cat &lt;file&gt;</code> &nbsp;·&nbsp;
+                <code>kill -9 &lt;pid&gt;</code> &nbsp;·&nbsp; <code>mv &lt;src&gt; &lt;dst&gt;</code> &nbsp;·&nbsp;
+                <code>rm &lt;file&gt;</code> &nbsp;·&nbsp; <code>npm install</code>
+            </div>
+            """)
             
             cwd_state = gr.State("")
             
@@ -325,12 +408,24 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
             history_html = gr.HTML("", elem_classes="history-panel")
 
     # Event Bindings
+    task_dropdown.change(
+        fn=update_task_description,
+        inputs=[task_dropdown],
+        outputs=[task_desc_display]
+    )
+
     reset_btn.click(
         fn=api_reset,
         inputs=[task_dropdown],
         outputs=[terminal_out, cwd_state, score_display, health_display, system_msg]
     )
-    
+
+    demo_btn.click(
+        fn=run_demo,
+        inputs=[task_dropdown],
+        outputs=[terminal_out, cwd_state, score_display, health_display, history_html]
+    )
+
     # Submitting command triggers execution and wipes input box
     for event in [cmd_input.submit, submit_btn.click]:
         event(
