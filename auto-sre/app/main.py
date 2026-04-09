@@ -41,6 +41,11 @@ app.include_router(tasks.router, tags=["Environment"])
 app.include_router(grader.router, tags=["Environment"])
 app.include_router(baseline.router, tags=["Evaluation"])
 
+from fastapi.responses import RedirectResponse
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/ui")
+
 
 @app.get("/healthz", tags=["Health"])
 async def healthz() -> dict[str, str]:
