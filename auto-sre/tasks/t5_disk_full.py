@@ -27,11 +27,22 @@ def build_initial_state() -> tuple[MockFilesystem, ProcessManager]:
     }
     fs.set_base(base_files)
 
+    target_log = "/var/log/syslog"
+
     # Writable overlay
     overlay_files = {
         "/home/user/.bashrc": MockFile("/home/user/.bashrc", "alias ll='ls -l'"),
-        "/var/log/syslog": MockFile("/var/log/syslog", "LARGE_LOG_CONTENT" * 1000000),  # Massive file
+        target_log: MockFile(target_log, "LARGE_LOG_CONTENT" * 1000000),  # Massive file
     }
     fs.set_overlay(overlay_files)
 
+    global _state_hint
+    _state_hint = {
+        "disk_usage": 100,
+        "target_log": target_log
+    }
+
     return fs, pm
+
+_state_hint: dict = {}
+

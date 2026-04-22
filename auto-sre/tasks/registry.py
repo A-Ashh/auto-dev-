@@ -9,7 +9,11 @@ from engine.filesystem import MockFilesystem
 from engine.process_manager import ProcessManager
 from grader.base import BaseGrader
 
-from tasks import t1_config, t2_port, t3_dep, t4_trap, t5_disk_full, t6_oom_killer
+from tasks import (
+    t1_config, t2_port, t3_dep, t4_trap, t5_disk_full,
+    t6_oom_killer, t7_cascading_meltdown,
+    t8_memory_leak_loop, t9_dependency_chain_failure, t10_config_secret_failure,
+)
 
 
 @dataclass
@@ -67,6 +71,34 @@ TASK_REGISTRY: dict[str, TaskDefinition] = {
         max_steps=t6_oom_killer.MAX_STEPS,
         build_initial_state=t6_oom_killer.build_initial_state,
         grader=t6_oom_killer.GRADER,
+    ),
+    t7_cascading_meltdown.TASK_ID: TaskDefinition(
+        task_id=t7_cascading_meltdown.TASK_ID,
+        description=t7_cascading_meltdown.DESCRIPTION,
+        max_steps=t7_cascading_meltdown.MAX_STEPS,
+        build_initial_state=t7_cascading_meltdown.build_initial_state,
+        grader=t7_cascading_meltdown.GRADER,
+    ),
+    t8_memory_leak_loop.TASK_ID: TaskDefinition(
+        task_id=t8_memory_leak_loop.TASK_ID,
+        description=t8_memory_leak_loop.DESCRIPTION,
+        max_steps=t8_memory_leak_loop.MAX_STEPS,
+        build_initial_state=t8_memory_leak_loop.build_initial_state,
+        grader=t8_memory_leak_loop.GRADER,
+    ),
+    t9_dependency_chain_failure.TASK_ID: TaskDefinition(
+        task_id=t9_dependency_chain_failure.TASK_ID,
+        description=t9_dependency_chain_failure.DESCRIPTION,
+        max_steps=t9_dependency_chain_failure.MAX_STEPS,
+        build_initial_state=t9_dependency_chain_failure.build_initial_state,
+        grader=t9_dependency_chain_failure.GRADER,
+    ),
+    t10_config_secret_failure.TASK_ID: TaskDefinition(
+        task_id=t10_config_secret_failure.TASK_ID,
+        description=t10_config_secret_failure.DESCRIPTION,
+        max_steps=t10_config_secret_failure.MAX_STEPS,
+        build_initial_state=t10_config_secret_failure.build_initial_state,
+        grader=t10_config_secret_failure.GRADER,
     ),
 }
 

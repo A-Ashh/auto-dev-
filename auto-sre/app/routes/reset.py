@@ -45,8 +45,22 @@ def _do_reset(task_id: str) -> ResetResponse:
             stdout=f"Environment reset to task {task_id}.",
             stderr="",
             cwd="/home/user",
-            health_status=False,
+            health_status=session.sandbox.state.get("health_status", False),
         )
+
+        # Build state snapshot — additive, does NOT modify observation
+        s = session.sandbox.state
+        procs = [
+            {"pid": p.pid, "command": p.command, "is_alive": p.is_alive}
+            for p in session.sandbox.pm.list_processes()
+        ]
+        state_snapshot = {
+            "disk_usage": s.get("disk_usage", 0),
+            "memory_usage": s.get("memory_usage", 0),
+            "services_running": s.get("services_running", {}),
+            "processes": procs,
+        }
+
         return ResetResponse(
             observation=observation,
             info={
@@ -54,6 +68,7 @@ def _do_reset(task_id: str) -> ResetResponse:
                 "description": session.task_def.description,
                 "max_steps": session.task_def.max_steps,
             },
+            state=state_snapshot,
         )
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))

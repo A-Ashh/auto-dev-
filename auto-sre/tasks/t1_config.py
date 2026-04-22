@@ -9,6 +9,10 @@ TASK_ID = "t1_config"
 DESCRIPTION = "A critical config file has been misnamed. The app cannot find /etc/app/conf."
 MAX_STEPS = 10
 
+_state_hint: dict = {
+    "config_valid": False,
+    "services_running": {"app": False, "nginx": True}
+}
 
 def build_initial_state() -> tuple[MockFilesystem, ProcessManager]:
     """Create the broken baseline state for this task."""

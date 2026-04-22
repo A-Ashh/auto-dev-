@@ -42,5 +42,10 @@ def build_initial_state() -> tuple[MockFilesystem, ProcessManager]:
 
     return fs, pm
 
+_state_hint: dict = {
+    "dependencies_installed": False,
+    "services_running": {"app": False}
+}
+
 
 GRADER = DependencyGrader()

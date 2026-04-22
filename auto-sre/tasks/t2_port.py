@@ -19,10 +19,14 @@ def build_initial_state() -> tuple[MockFilesystem, ProcessManager]:
         "/var/log/syslog": MockFile(path="/var/log/syslog", content="system boot ok\n"),
     })
 
+    import random
+    rogue_pid = random.randint(300, 9999)
+    target_port = 8080
+
     fs.set_overlay({
         "/home/user/app.js": MockFile(
             path="/home/user/app.js",
-            content="const http = require('http');\nhttp.createServer().listen(8080);\n",
+            content=f"const http = require('http');\nhttp.createServer().listen({target_port});\n",
         ),
     })
 
@@ -30,10 +34,20 @@ def build_initial_state() -> tuple[MockFilesystem, ProcessManager]:
     pm.load([
         MockProcess(pid=1, command="init", port_bindings=[]),
         MockProcess(pid=200, command="nginx", port_bindings=[80]),
-        MockProcess(pid=512, command="rogue-server", port_bindings=[8080]),
+        MockProcess(pid=rogue_pid, command="rogue-server", port_bindings=[target_port]),
     ])
 
+    global _state_hint
+    _state_hint = {
+        "ports": {str(target_port): rogue_pid},
+        "target_port": target_port,
+        "rogue_pid": rogue_pid
+    }
+
     return fs, pm
+
+_state_hint: dict = {}
+
 
 
 GRADER = PortGrader()

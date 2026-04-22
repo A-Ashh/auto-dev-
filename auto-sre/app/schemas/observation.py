@@ -40,6 +40,10 @@ class ResetResponse(BaseModel):
 
     observation: Observation
     info: dict[str, Any] = Field(default_factory=dict, description="Task metadata")
+    state: dict[str, Any] = Field(
+        default_factory=dict,
+        description="World model snapshot: disk, memory, services, processes"
+    )
 
 
 class StateResponse(BaseModel):

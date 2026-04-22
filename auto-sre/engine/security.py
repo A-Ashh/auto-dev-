@@ -33,6 +33,11 @@ ALLOWED_COMMANDS: set[str] = {
     "netstat",
     "lsof",
     "node",
+    "df",
+    "du",
+    "free",
+    "top",
+    "ss",
 }
 
 STEP_TIMEOUT_SECONDS: int = 5

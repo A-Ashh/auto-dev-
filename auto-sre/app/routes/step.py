@@ -50,28 +50,61 @@ async def step_action(body: dict = Body(...)) -> Any:
         if not session.task_def:
              raise HTTPException(status_code=400, detail="NO_TASK_LOADED")
 
+        # Guard: if episode already ended, don't re-run grader
+        if session.is_done:
+            return {
+                "observation": {
+                    "stdout": "",
+                    "stderr": "Episode already completed. Please reset to start a new episode.",
+                    "cwd": session.sandbox.cwd,
+                    "health_status": session.sandbox.state.get("health_status", False)
+                },
+                "reward": _SCORE_MIN,
+                "score": _SCORE_MIN,
+                "done": True,
+                "state": {},
+                "info": {"steps_taken": session.step_count, "grader_message": "Episode already done"}
+            }
+
         # Core logic (surgical integration with existing session)
         result = session.sandbox.execute(str(cmd))
         session.step_count += 1
         session.record_step(str(cmd), result.stdout, result.stderr)
         
         raw_reward, done, grader_msg = session.task_def.grader.grade(
-            session.sandbox.fs, session.sandbox.pm, session.sandbox.command_history
+            session.sandbox.fs,
+            session.sandbox.pm,
+            session.sandbox.command_history,
+            session.sandbox.state,
         )
         # HARD CLAMP — strictly in (0, 1), never 0.0 or 1.0
         reward = _safe_reward(raw_reward)
         session.is_done = done or (session.step_count >= session.task_def.max_steps)
+
+        # World model state snapshot (additive — does NOT touch observation)
+        s = session.sandbox.state
+        procs = [
+            {"pid": p.pid, "command": p.command, "is_alive": p.is_alive}
+            for p in session.sandbox.pm.list_processes()
+        ]
+        state_snapshot = {
+            "disk_usage": s.get("disk_usage", 0),
+            "memory_usage": s.get("memory_usage", 0),
+            "services_running": s.get("services_running", {}),
+            "processes": procs,
+        }
 
         return {
             "observation": {
                 "stdout": result.stdout,
                 "stderr": result.stderr,
                 "cwd": session.sandbox.cwd,
-                "health_status": done
+                "health_status": session.sandbox.state.get("health_status", done)
             },
             "reward": reward,
             "score": reward,
             "done": session.is_done,
+            "state": state_snapshot,
             "info": {
                 "steps_taken": session.step_count,
                 "grader_message": grader_msg
@@ -87,7 +120,7 @@ async def step_action(body: dict = Body(...)) -> Any:
             },
             "reward": _SCORE_MIN,
             "score": _SCORE_MIN,
-            "done": True,
+            "done": False,
             "info": {
                 "steps_taken": 0,
                 "grader_message": f"Exception occurred: {str(e)}"

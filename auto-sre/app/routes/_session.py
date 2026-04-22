@@ -32,7 +32,16 @@ class Session:
         self.task_def = get_task(task_id)  # raises KeyError if not found
         assert self.task_def is not None  # type guard for static analysis
         fs, pm = self.task_def.build_initial_state()
-        self.sandbox = Sandbox(fs, pm)
+
+        # Inject task-specific world model state if provided
+        import importlib
+        try:
+            task_module = importlib.import_module(f"tasks.{task_id}")
+            initial_state = getattr(task_module, "_state_hint", {})
+        except Exception:
+            initial_state = {}
+
+        self.sandbox = Sandbox(fs, pm, initial_state=dict(initial_state))
         self.step_count = 0
         self.is_done = False
         self.command_history_full.clear()

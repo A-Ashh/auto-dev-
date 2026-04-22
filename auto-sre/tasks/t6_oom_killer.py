@@ -34,13 +34,25 @@ def build_initial_state() -> tuple[MockFilesystem, ProcessManager]:
     }
     fs.set_overlay(overlay_files)
 
+    import random
+    rogue_pid = random.randint(300, 9999)
+
     # Rogue process
     pm.load([
         MockProcess(
-            pid=999,
+            pid=rogue_pid,
             command="python3 /tmp/memory_hog.py",
             port_bindings=[]
         )
     ])
 
+    global _state_hint
+    _state_hint = {
+        "memory_usage": 99,
+        "rogue_pid": rogue_pid
+    }
+
     return fs, pm
+
+_state_hint: dict = {}
+

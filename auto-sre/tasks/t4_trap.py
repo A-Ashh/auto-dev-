@@ -35,5 +35,9 @@ def build_initial_state() -> tuple[MockFilesystem, ProcessManager]:
 
     return fs, pm
 
+_state_hint: dict = {
+    "health_status": True
+}
+
 
 GRADER = TrapGrader()
