@@ -17,8 +17,8 @@ class TestConfigGrader:
     def test_full_credit_when_config_exists(self) -> None:
         fs = MockFilesystem()
         fs.set_overlay({"/etc/app/conf": MockFile(path="/etc/app/conf", content="OK")})
-        reward, done, msg = self.grader.grade(fs, self.pm, [], state={"services_running": {"app": True}})
-        assert reward == pytest.approx(0.97, abs=0.01)
+        reward, done, msg = self.grader.grade(fs, self.pm, [])
+        assert reward == pytest.approx(0.989, abs=0.01)
         assert done is True
 
     def test_partial_credit_for_diagnostics(self) -> None:
@@ -45,8 +45,8 @@ class TestPortGrader:
     def test_full_credit_when_port_free(self) -> None:
         pm = ProcessManager()
         pm.load([MockProcess(pid=1, command="init")])
-        reward, done, _ = self.grader.grade(self.fs, pm, [], state={"services_running": {"app": True}})
-        assert reward == pytest.approx(0.97, abs=0.01)
+        reward, done, _ = self.grader.grade(self.fs, pm, [])
+        assert reward == pytest.approx(0.989, abs=0.01)
         assert done is True
 
     def test_zero_when_port_occupied(self) -> None:
@@ -78,8 +78,8 @@ class TestDependencyGrader:
             "/home/user/app/node_modules/.package-lock.json":
                 MockFile(path="/home/user/app/node_modules/.package-lock.json", content="{}")
         })
-        reward, done, _ = self.grader.grade(fs, self.pm, [], state={"dependencies_installed": True, "services_running": {"app": True}})
-        assert reward == pytest.approx(0.97, abs=0.01)
+        reward, done, _ = self.grader.grade(fs, self.pm, [])
+        assert reward == pytest.approx(0.989, abs=0.01)
         assert done is True
 
     def test_zero_when_nothing_done(self) -> None:

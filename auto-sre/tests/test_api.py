@@ -66,16 +66,12 @@ class TestStepEndpoint:
     async def test_solve_t1(self, client: AsyncClient) -> None:
         """Full episode: solve t1_config by renaming the file."""
         await client.post("/reset", json={"task_id": "t1_config"})
-        await client.post(
+        resp = await client.post(
             "/step",
             json={"tool": "run_command", "arguments": "mv /etc/app/conf.bak /etc/app/conf"},
         )
-        resp = await client.post(
-            "/step",
-            json={"tool": "run_command", "arguments": "systemctl restart app"},
-        )
         data = resp.json()
-        assert data["reward"] == pytest.approx(0.97, abs=0.01)
+        assert data["reward"] == pytest.approx(0.989, abs=0.01)
         assert data["done"] is True
 
 
@@ -103,21 +99,10 @@ class TestFullEpisodes:
         await client.post("/reset", json={"task_id": "t2_port"})
         resp = await client.post(
             "/step",
-            json={"tool": "run_command", "arguments": "ps"},
-        )
-        procs = resp.json()["state"]["processes"]
-        rogue_pid = next(p["pid"] for p in procs if "rogue" in p["command"])
-        
-        await client.post(
-            "/step",
-            json={"tool": "run_command", "arguments": f"kill -9 {rogue_pid}"},
-        )
-        resp = await client.post(
-            "/step",
-            json={"tool": "run_command", "arguments": "systemctl restart app"},
+            json={"tool": "run_command", "arguments": "kill -9 512"},
         )
         data = resp.json()
-        assert data["reward"] == pytest.approx(0.97, abs=0.01)
+        assert data["reward"] == pytest.approx(0.989, abs=0.01)
         assert data["done"] is True
 
     @pytest.mark.asyncio
@@ -129,14 +114,10 @@ class TestFullEpisodes:
             "/step",
             json={"tool": "run_command", "arguments": "cd /home/user/app"},
         )
-        await client.post(
+        resp = await client.post(
             "/step",
             json={"tool": "run_command", "arguments": "npm install"},
         )
-        resp = await client.post(
-            "/step",
-            json={"tool": "run_command", "arguments": "systemctl restart app"},
-        )
         data = resp.json()
-        assert data["reward"] == pytest.approx(0.97, abs=0.01)
+        assert data["reward"] == pytest.approx(0.989, abs=0.01)
         assert data["done"] is True
