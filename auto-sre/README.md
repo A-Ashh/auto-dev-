@@ -1,3 +1,14 @@
+---
+title: Auto-SRE
+emoji: 🚨
+colorFrom: indigo
+colorTo: slate
+sdk: gradio
+sdk_version: "4.26.0"
+app_file: app.py
+pinned: false
+---
+
 # 🚨 Auto-SRE — AI-Powered SRE Training Platform
 
 [![OpenEnv Compliant](https://img.shields.io/badge/OpenEnv-Phase%201%20%26%202%20Compliant-brightgreen)](https://huggingface.co/spaces/goated1/auto-sre)
