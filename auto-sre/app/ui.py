@@ -163,15 +163,15 @@ TASK_DESCRIPTIONS = {
 }
 
 DEMO_SOLUTIONS = {
-    "t1_config": ["ls /etc/app", "mv /etc/app/conf.bak /etc/app/conf"],
-    "t2_port": ["ps", "kill -9 512"],
-    "t3_dep": ["ls /home/user/app", "npm install"],
-    "t4_trap": ["ls /etc/app", "ps"],
-    "t5_disk_full": ["ls /var/log", "rm /var/log/syslog"],
-    "t6_oom_killer": ["ps", "kill 999"],
-    "t7_cascading_meltdown": ["df -h", "rm /var/log/syslog", "ps", "kill -9 999", "systemctl restart db", "systemctl restart app"],
-    "t8_memory_leak_loop": ["free -m", "ps aux", "kill -9 999", "systemctl restart leak-daemon", "systemctl status leak-daemon"],
-    "t9_dependency_chain_failure": ["systemctl status app", "cat /var/log/app.log", "systemctl restart db", "systemctl restart cache", "systemctl restart app"],
+    "t1_config": ["ls /etc/app", "mv /etc/app/conf.bak /etc/app/conf", "systemctl restart app"],
+    "t2_port": ["ps", "kill -9 {rogue_pid}", "systemctl restart app"],
+    "t3_dep": ["npm install", "systemctl restart app"],
+    "t4_trap": ["cat /etc/app/conf", "ps", "netstat"],
+    "t5_disk_full": ["rm /var/log/syslog"],
+    "t6_oom_killer": ["ps", "kill -9 {rogue_pid}"],
+    "t7_cascading_meltdown": ["df -h", "rm /var/log/syslog", "ps", "kill -9 {rogue_pid}", "systemctl restart db"],
+    "t8_memory_leak_loop": ["ps", "kill -9 {rogue_pid}", "systemctl restart leak-daemon"],
+    "t9_dependency_chain_failure": ["systemctl restart db", "systemctl restart cache", "systemctl restart app"],
     "t10_config_secret_failure": ["systemctl status app", "cat /var/log/app.log", "cat /etc/app/secrets.conf", "echo DB_PASSWORD=CORRECT_SECRET > /etc/app/secrets.conf", "systemctl restart app"],
 }
 
@@ -180,13 +180,12 @@ def update_task_description(task_id: str) -> str:
     desc = TASK_DESCRIPTIONS.get(task_id, "Select a scenario to see its description.")
     return f"<div style='background:rgba(99,102,241,0.12);border-left:4px solid #6366f1;border-radius:6px;padding:12px;color:#c7d2fe;font-size:0.95em;margin-top:10px;'><b>📌 Task:</b> {desc}</div>"
 
-
 async def run_demo(task_id: str):
     """Auto-run the known solution commands for the selected task."""
     if not task_id:
-        return "Select a task first.", "", 0.01, "<span class='health-bad'>🔴 STANDBY</span>", ""
+        return "Select a task first.", "", 0.01, "<span class='health-neutral'>&#9898; NO TASK</span>", ""
 
-    # Step 1: Reset
+    # Reset the sandbox first
     async with httpx.AsyncClient() as client:
         try:
             resp = await client.post(f"{API_BASE}/reset", json={"task_id": task_id})
@@ -194,37 +193,62 @@ async def run_demo(task_id: str):
             data = resp.json()
             cwd = data.get("cwd", "/home/user")
         except Exception as e:
-            return f"Demo failed during reset: {e}", "", 0.01, "<span class='health-bad'>🔴 ERROR</span>", ""
+            return f"Demo failed during reset: {e}", "", 0.01, "<span class='health-bad'>&#128308; ERROR</span>", ""
 
-    term_out = f"=== 🎬 DEMO MODE ===\nTask: {task_id}\nRunning optimal solution...\n\n"
+    term_out = f"=== Demo MODE ===\nTask: {task_id}\nRunning optimal solution...\n\n"
     history_html = ""
     reward = 0.01
-    health_str = "<span class='health-bad'>🔴 BROKEN</span>"
+    done = False
+    known_rogue_pid = None
 
     cmds = DEMO_SOLUTIONS.get(task_id, [])
     async with httpx.AsyncClient() as client:
         for cmd in cmds:
+            # Substitute rogue PID placeholder once we learn it from ps output
+            if "{rogue_pid}" in cmd:
+                cmd = cmd.replace("{rogue_pid}", str(known_rogue_pid) if known_rogue_pid else "999")
+
             try:
                 resp = await client.post(f"{API_BASE}/step", json={"tool": "run_command", "arguments": cmd})
                 resp.raise_for_status()
                 d = resp.json()
-                stdout = d.get("stdout", "")
-                stderr = d.get("stderr", "")
+
+                # step API wraps stdout/stderr/cwd inside "observation"
+                obs_data = d.get("observation", d)
+                stdout = obs_data.get("stdout", "")
+                stderr = obs_data.get("stderr", "")
+                cwd = obs_data.get("cwd", cwd)
                 reward = d.get("reward", reward)
-                health = d.get("health_status", False)
                 done = d.get("done", False)
-                cwd = d.get("cwd", cwd)
+
+                # Parse rogue PID from ps output for kill commands
+                if cmd.strip().startswith("ps") and stdout and known_rogue_pid is None:
+                    for line in stdout.splitlines():
+                        low = line.lower()
+                        if any(k in low for k in ("rogue", "leak-daemon --no-limit", "rogue-logger", "rogue-server", "memory-hog")):
+                            parts = line.split()
+                            for p in parts:
+                                if p.isdigit() and int(p) > 1:
+                                    known_rogue_pid = int(p)
+                                    break
 
                 obs = stdout or stderr or ""
                 term_out += f"$ {cmd}\n{obs}\n"
-                h_entry = f"<div class='history-item'><b>> {cmd}</b><br><span class='history-out'>{obs}</span></div>"
+                h_entry = f"<div class='history-item'><b>&gt; {cmd}</b><br><span class='history-out'>{obs}</span></div>"
                 history_html = h_entry + history_html
 
                 if done:
-                    health_str = "<span class='health-good'>🟢 HEALTHY (PASS)</span>" if health else "<span class='health-bad'>❌ FAILED</span>"
                     break
             except Exception as e:
                 term_out += f"$ {cmd}\n[ERROR: {e}]\n"
+
+    # Determine health from reward (consistent with api_step logic)
+    if done and reward > 0.5:
+        health_str = "<span class='health-good'>&#129001; HEALTHY (PASS)</span>"
+    elif done:
+        health_str = "<span class='health-bad'>&#10060; FAILED</span>"
+    else:
+        health_str = "<span class='health-wait'>&#127993; AWAITING FIX</span>"
 
     term_out += f"\n=== Demo Complete | Reward: {reward:.3f} ==="
     return term_out, cwd, reward, health_str, history_html
