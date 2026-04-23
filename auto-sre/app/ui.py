@@ -8,7 +8,7 @@ import gradio as gr  # type: ignore
 from openai import AsyncOpenAI
 
 # The API base URL on which the app internally runs natively alongside the UI
-API_BASE = "http://127.0.0.1:7860"
+API_BASE = "http://127.0.0.1:8000"
 CSS = """
 .gradio-container {
     background: radial-gradient(circle at 50% 0%, #311bb6 0%, #0f172a 50%, #020617 100%) !important;
