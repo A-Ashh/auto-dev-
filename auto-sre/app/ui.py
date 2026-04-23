@@ -357,11 +357,19 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
                     label="Select Scenario",
                     value="t1_config"
                 )
+                
+                agent_mode = gr.Radio(
+                    ["Manual Mode", "AI Agent Mode"],
+                    value="Manual Mode",
+                    label="Execution Mode"
+                )
+                
                 task_desc_display = gr.HTML(update_task_description("t1_config"))
                 
                 gr.Markdown("<br>")
                 reset_btn = gr.Button("🔄 Initialize Sandbox", elem_classes="analyze-btn", scale=1)
                 demo_btn = gr.Button("▶ Run Demo", variant="secondary", scale=1)
+                run_agent_btn = gr.Button("Run Multi-Agent Solver 🚀", scale=1, visible=False)
                 
                 gr.Markdown("<br>")
                 system_msg = gr.HTML("<span style='color: #6ee7b7;'>Environment not started.</span>")
@@ -418,8 +426,44 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
                 gr.Markdown("### 📜 Command Log")
                 gr.Markdown("<br>")
                 history_html = gr.HTML("", elem_classes="history-panel")
+                
+                gr.Markdown("<br>")
+                agent_log = gr.Textbox(
+                    label="🧠 Agent Activity",
+                    lines=10,
+                    interactive=False,
+                    visible=False
+                )
 
     # Event Bindings
+    def toggle_agent_mode(mode):
+        is_ai = mode == "AI Agent Mode"
+        return gr.update(visible=is_ai), gr.update(visible=is_ai)
+
+    agent_mode.change(
+        fn=toggle_agent_mode,
+        inputs=[agent_mode],
+        outputs=[run_agent_btn, agent_log]
+    )
+
+    async def simulate_agent():
+        steps = [
+            "🧠 Commander: Analyzing system state...",
+            "🧠 Commander: Analyzing system state...\n📋 Planner: Creating recovery plan...",
+            "🧠 Commander: Analyzing system state...\n📋 Planner: Creating recovery plan...\n⚙️ Executor: Running commands...",
+            "🧠 Commander: Analyzing system state...\n📋 Planner: Creating recovery plan...\n⚙️ Executor: Running commands...\n🔍 Critic: Validating system health...",
+            "🧠 Commander: Analyzing system state...\n📋 Planner: Creating recovery plan...\n⚙️ Executor: Running commands...\n🔍 Critic: Validating system health...\n✅ Task completed successfully"
+        ]
+        for step in steps:
+            yield step
+            await asyncio.sleep(1.2)
+
+    run_agent_btn.click(
+        fn=simulate_agent,
+        inputs=[],
+        outputs=[agent_log]
+    )
+
     task_dropdown.change(
         fn=update_task_description,
         inputs=[task_dropdown],
