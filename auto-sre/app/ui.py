@@ -135,9 +135,9 @@ FALLBACK_HINTS = {
     "t5_disk_full": "Check large log files in /var/log. Use `ls` or `find`.",
     "t6_oom_killer": "Look for memory-heavy processes using `ps` and kill the rogue one.",
     "t7_cascading_meltdown": "Multiple failures. Check disk, memory, and services in order.",
-    "t8_memory_leak_loop": "A script keeps spawning leakers. Kill the root script first.",
-    "t9_dependency_chain_failure": "Network is misconfigured, preventing db start. Check /etc/network/interfaces.",
-    "t10_config_secret_failure": "Secret file is unreadable. Fix permissions before starting app."
+    "t8_memory_leak_loop": "Check RAM with free or ps. Find the rogue memory hog and kill it before restarting leak-daemon.",
+    "t9_dependency_chain_failure": "Read /var/log/app.log. Ensure you restart db, then cache, then the app itself.",
+    "t10_config_secret_failure": "Check /var/log/app.log to see the auth error. Echo a new secret into /etc/app/secrets.conf and restart the app."
 }
 
 TASK_DESCRIPTIONS = {
@@ -148,9 +148,9 @@ TASK_DESCRIPTIONS = {
     "t5_disk_full": "💾 Disk is 100% full due to a massive log file in /var/log. Identify and remove it to restore service.",
     "t6_oom_killer": "🧠 A rogue process is leaking memory, triggering OOM killer. Find and terminate the memory hog.",
     "t7_cascading_meltdown": "🔥 Critical failure chain: disk is full, rogue processes exist, and services are down. System needs a full recovery.",
-    "t8_memory_leak_loop": "🔄 A background script continuously spawns memory leakers. Stop the cycle and clean up.",
-    "t9_dependency_chain_failure": "🔗 App needs DB, DB needs network. Network config is broken. Fix the chain to restore service.",
-    "t10_config_secret_failure": "🔒 App crashes because it can't read a secret key file due to incorrect permissions. Fix it."
+    "t8_memory_leak_loop": "🔄 A background process is hoarding RAM and crashing the leak-daemon. Find the memory hog, kill it, and restart the daemon.",
+    "t9_dependency_chain_failure": "🔗 App is offline. Trace the logs, restart the db and cache dependencies, and then restart the app.",
+    "t10_config_secret_failure": "🔒 App crashes due to authentication failure. Inspect logs, find the invalid config secret, update it, and restart the app."
 }
 
 DEMO_SOLUTIONS = {
