@@ -17,6 +17,14 @@ CSS = """
     color: #ecfdf5 !important;
 }
 
+.card {
+    padding: 16px !important;
+    border-radius: 12px !important;
+    background: #0f172a !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
 /* Glassmorphism Panels */
 .glass-panel {
     background: rgba(2, 44, 34, 0.75) !important;
@@ -337,11 +345,12 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
     </div>
     """)
     
-    with gr.Row(equal_height=True):
-        # Left Panel (Scoreboard & Controls - 20%)
+    with gr.Row():
+        # Left Panel (Task Control - 1x)
         with gr.Column(scale=1):
-            with gr.Column(elem_classes="glass-panel"):
-                gr.HTML("<h3 style='margin-bottom: 20px; color: #ecfdf5;'>🕹️ Task Control</h3>")
+            with gr.Group(elem_classes=["card"]):
+                gr.Markdown("### 🕹️ Task Control")
+                gr.Markdown("<br>")
                 
                 task_dropdown = gr.Dropdown(
                     choices=["t1_config", "t2_port", "t3_dep", "t4_trap", "t5_disk_full", "t6_oom_killer", "t7_cascading_meltdown", "t8_memory_leak_loop", "t9_dependency_chain_failure", "t10_config_secret_failure"],
@@ -349,57 +358,66 @@ with gr.Blocks(head="<style>" + CSS + "</style>", theme=_theme) as demo:
                     value="t1_config"
                 )
                 task_desc_display = gr.HTML(update_task_description("t1_config"))
-                reset_btn = gr.Button("🔄 Initialize Sandbox", elem_classes="analyze-btn")
-                demo_btn = gr.Button("▶ Run Demo", variant="secondary")
                 
+                gr.Markdown("<br>")
+                reset_btn = gr.Button("🔄 Initialize Sandbox", elem_classes="analyze-btn", scale=1)
+                demo_btn = gr.Button("▶ Run Demo", variant="secondary", scale=1)
+                
+                gr.Markdown("<br>")
                 system_msg = gr.HTML("<span style='color: #6ee7b7;'>Environment not started.</span>")
                 
                 gr.Markdown("---")
-                
-                gr.HTML("<h3 style='margin-bottom: 10px; margin-top:20px; color: #ecfdf5;'>🏆 Reward Score</h3>")
+                gr.Markdown("### 🏆 Reward Score")
                 score_display = gr.Number(value=0.01, show_label=False, interactive=False, elem_classes="score-display")
                 
-                gr.HTML("<h3 style='margin-bottom: 10px; margin-top:20px; color: #ecfdf5;'>🏥 System Health</h3>")
+                gr.Markdown("<br>")
+                gr.Markdown("### 🏥 System Health")
                 health_display = gr.HTML("<span class='health-bad'>🔴 STANDBY</span>")
                 
-        # Middle Panel (Terminal - 60%)
-        with gr.Column(scale=3):
-            gr.HTML("<h3 style='color: #ecfdf5;'>💻 Web Terminal</h3>")
-            gr.HTML("""
-            <div style='background:rgba(2, 44, 34, 0.7);border:1px solid rgba(16, 185, 129, 0.25);border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:0.88em;color:#a7f3d0;'>
-                <b style='color:#10b981;'>💡 Quick Commands:</b>&nbsp;&nbsp;
-                <code>ls</code> &nbsp;·&nbsp; <code>ps</code> &nbsp;·&nbsp; <code>cat &lt;file&gt;</code> &nbsp;·&nbsp;
-                <code>kill -9 &lt;pid&gt;</code> &nbsp;·&nbsp; <code>mv &lt;src&gt; &lt;dst&gt;</code> &nbsp;·&nbsp;
-                <code>rm &lt;file&gt;</code> &nbsp;·&nbsp; <code>npm install</code>
-            </div>
-            """)
+        # Middle Panel (Terminal MAIN - 2x)
+        with gr.Column(scale=2):
+            with gr.Group(elem_classes=["card"]):
+                gr.Markdown("### 💻 Web Terminal")
+                gr.HTML("""
+                <div style='background:rgba(2, 44, 34, 0.7);border:1px solid rgba(16, 185, 129, 0.25);border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:0.88em;color:#a7f3d0;'>
+                    <b style='color:#10b981;'>💡 Quick Commands:</b>&nbsp;&nbsp;
+                    <code>ls</code> &nbsp;·&nbsp; <code>ps</code> &nbsp;·&nbsp; <code>cat &lt;file&gt;</code> &nbsp;·&nbsp;
+                    <code>kill -9 &lt;pid&gt;</code> &nbsp;·&nbsp; <code>mv &lt;src&gt; &lt;dst&gt;</code> &nbsp;·&nbsp;
+                    <code>rm &lt;file&gt;</code> &nbsp;·&nbsp; <code>npm install</code>
+                </div>
+                """)
+                
+                cwd_state = gr.State("")
+                
+                terminal_out = gr.Textbox(
+                    lines=20, 
+                    max_lines=25,
+                    value="[ SYSTEM OFFLINE ]\nPlease initialize a sandbox task from the control panel.", 
+                    interactive=False, 
+                    show_label=False, 
+                    container=True,
+                    elem_classes="terminal-box"
+                )
+                
+                gr.Markdown("<br>")
+                cmd_input = gr.Textbox(
+                    lines=1,
+                    placeholder="Type shell command (e.g. ls, ps aux, kill, mv) and press Enter...",
+                    show_label=False,
+                    elem_classes="terminal-input"
+                )
+                
+                submit_btn = gr.Button("Execute Command ⚡", variant="primary", scale=1)
+                
+                gr.Markdown("<br>")
+                copilot_btn = gr.Button("🤖 Ask AI Copilot for Hint", elem_classes="analyze-btn", scale=1)
             
-            cwd_state = gr.State("")
-            
-            terminal_out = gr.Textbox(
-                lines=20, 
-                value="[ SYSTEM OFFLINE ]\nPlease initialize a sandbox task from the control panel.", 
-                interactive=False, 
-                show_label=False, 
-                elem_classes="terminal-box"
-            )
-            
-            cmd_input = gr.Textbox(
-                lines=1,
-                placeholder="Type shell command (e.g. ls, ps aux, kill, mv) and press Enter...",
-                show_label=False,
-                elem_classes="terminal-input"
-            )
-            
-            submit_btn = gr.Button("Execute Command ⚡", variant="primary")
-            
-            gr.HTML("<div style='margin-top: 15px;'></div>")
-            copilot_btn = gr.Button("🤖 Ask AI Copilot for Hint", elem_classes="analyze-btn")
-            
-        # Right Panel (History - 20%)
+        # Right Panel (History - 1x)
         with gr.Column(scale=1):
-            gr.HTML("<h3 style='color: #ecfdf5;'>📜 Command Log</h3>")
-            history_html = gr.HTML("", elem_classes="history-panel")
+            with gr.Group(elem_classes=["card"]):
+                gr.Markdown("### 📜 Command Log")
+                gr.Markdown("<br>")
+                history_html = gr.HTML("", elem_classes="history-panel")
 
     # Event Bindings
     task_dropdown.change(
