@@ -52,7 +52,7 @@ def build_initial_state() -> tuple[MockFilesystem, ProcessManager]:
         "memory_usage": 30,
         "services_running": {"db": False, "cache": False, "app": False, "nginx": True},
         "target_log": "/var/log/app.log",
-        "target_port": 80,
+        "target_port": 3000,
         "dep_chain_order": ["db", "cache", "app"],
     })
     return fs, pm

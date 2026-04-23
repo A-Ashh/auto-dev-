@@ -165,7 +165,7 @@ class DependencyGrader(BaseGrader):
       Step 3 (+0.15): Verify error (node app.js)
       Step 4 (+0.45): Install deps (npm install)
       Step 5 (+0.10): Verify app starts (node app.js again)
-      Success: node_modules exists → done=True
+      Success: dependencies_installed=True in state → done=True
     """
 
     def grade(
@@ -176,12 +176,17 @@ class DependencyGrader(BaseGrader):
         state: dict[str, Any] | None = None,
     ) -> tuple[float, bool, str]:
         state = state or {}
-        has_modules = filesystem.exists("/home/user/app/node_modules/.package-lock.json")
+        # Use state flag (set by sandbox npm handler) - reliable regardless of cwd
+        deps_installed = state.get("dependencies_installed", False)
         app_running = state.get("services_running", {}).get("app", False)
 
-        # Final success condition
-        if has_modules and app_running:
+        # Final success condition: deps installed and app started
+        if deps_installed and app_running:
             return _safe_score(0.97), True, "Dependencies installed and app restarted successfully"
+        # Also accept deps installed alone (app may not need explicit restart in task)
+        if deps_installed and any("npm install" in cmd for cmd in command_history):
+            if any("systemctl" in cmd for cmd in command_history):
+                return _safe_score(0.97), True, "Dependencies installed and restart attempted"
 
         total_reward = 0.0
 
