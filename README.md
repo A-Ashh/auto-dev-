@@ -1,25 +1,27 @@
+---
+title: Auto-SRE
+emoji: 🚨
+colorFrom: indigo
+colorTo: slate
+sdk: gradio
+sdk_version: "4.26.0"
+app_file: auto-sre/app.py
+pinned: false
+---
+
 # 🚨 Auto-SRE — AI-Powered SRE Training Platform
 
-<<<<<<< Updated upstream
 [![OpenEnv Compliant](https://img.shields.io/badge/OpenEnv-Phase%201%20%26%202%20Compliant-brightgreen)](https://huggingface.co/spaces/goated1/auto-sre)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Hugging%20Face%20Spaces-blue)](https://huggingface.co/spaces/goated1/auto-sre)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **An OpenEnv-compliant, interactive SRE diagnostic sandbox powered by AI.** Evaluate LLM agents on realistic Linux infrastructure repair tasks — with a full web terminal, AI Copilot hints, and a one-click Demo Mode.
-
----
-
-## 🌐 Live Demo
-
-**[→ Try it on Hugging Face Spaces](https://huggingface.co/spaces/goated1/auto-sre)**
-=======
 > *"The server is down. You have 15 steps. Go."*
 
 **Auto-SRE** is an [OpenEnv](https://huggingface.co/openenv)-compliant environment where AI agents learn to diagnose and repair broken Linux infrastructure — just like an on-call Site Reliability Engineer.
 
 Unlike toy benchmarks, agents must execute real shell commands inside a sandboxed system, read actual error signals, and apply the correct fix — **in the correct order**. Wrong guesses don't score. Half-correct attempts earn partial credit. Systematic diagnosis earns full marks.
 
-🌐 **Live Demo:** https://huggingface.co/spaces/goated1/auto-sre
+🌐 **Live Demo:** [Try it on Hugging Face Spaces](https://huggingface.co/spaces/goated1/auto-sre)
 
 ---
 
@@ -33,7 +35,6 @@ Unlike toy benchmarks, agents must execute real shell commands inside a sandboxe
 | 🔗 **Dependency Ordering** | T9: wrong restart sequence is penalized |
 | 🔐 **Secret Injection** | T10: echo redirection writes to config files |
 | 📊 **Per-Task Metrics** | Training plots per-task reward + overall curve |
->>>>>>> Stashed changes
 
 ---
 
