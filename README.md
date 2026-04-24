@@ -40,13 +40,13 @@ Unlike toy benchmarks, agents must execute real shell commands inside a sandboxe
 
 Auto-SRE is an interactive Site Reliability Engineering (SRE) training and evaluation environment built for the OpenEnv hackathon. It provides:
 
-<<<<<<< Updated upstream
 - A **mock Linux sandbox** where AI agents or humans diagnose and fix broken infrastructure
 - A **FastAPI backend** fully compliant with OpenEnv Phase 1 & Phase 2 validation
 - An **interactive web terminal UI** built with Gradio
 - An **AI Copilot** that provides context-aware debugging hints on demand
 - A **Demo Mode** that auto-plays the optimal solution for each task
-=======
+
+Agents will face challenges such as:
 - Misconfigured files that block application startup
 - Rogue processes holding ports hostage
 - Missing dependencies that crash deployments
@@ -58,7 +58,6 @@ Auto-SRE is an interactive Site Reliability Engineering (SRE) training and evalu
 **Tomorrow:** An AI agent does the same — faster, at 3 AM, without waking anyone up.
 
 Auto-SRE is the training and evaluation ground for that agent.
->>>>>>> Stashed changes
 
 ---
 
@@ -123,63 +122,52 @@ Each scenario shows its description immediately on selection, so judges and user
 
 ## 🧠 Reinforcement Learning Support
 
-Auto-SRE fully supports training Language Models via reinforcement learning. 
+Auto-SRE fully supports training Language Models via reinforcement learning. We explicitly target **Theme #2 (Long-Horizon Instruction Following via Script Generation)**.
 - A **GRPO training pipeline** is already implemented (`scripts/train_grpo.py`).
-- The environment natively supports the RL loop: **step-based interaction**, strictly bounded **reward signals**, and **deterministic outcomes**.
+- The pipeline demonstrates **Open-Loop Script Generation**, forcing the model to generate the entire sequential bash script upfront to simulate extreme long-horizon planning where intermediate execution feedback is unavailable.
+- The environment natively supports step-based validation of these open-loop scripts, strictly bounded **reward signals**, and **deterministic outcomes**.
 
-⚠️ **Training will be executed during the hackathon using provided compute resources.** (We do not claim training results at this phase).
+⚠️ **Training will be executed during the hackathon using provided compute resources.** 
 
 ---
 
 ## 🏗️ Architecture
 
-```
+```text
 auto-sre/
+├── openenv.yaml              # OpenEnv spec — all 10 tasks
 ├── app/
-│   ├── main.py          # FastAPI app entrypoint + Gradio mount
-│   ├── ui.py            # Gradio web terminal UI + AI Copilot + Demo Mode
-│   └── routes/
-│       ├── reset.py     # POST /reset — initialize task environment
-│       ├── step.py      # POST /step — execute shell command
-│       ├── grader.py    # GET /grader — evaluate current state
-│       ├── state.py     # GET /state — read environment snapshot
-│       ├── tasks.py     # GET /tasks — list all registered tasks
-│       └── _session.py  # In-memory session singleton
-├── tasks/
-│   ├── registry.py      # Task registry (t1–t10)
-│   ├── t1_config.py     # Config file repair scenario
-│   ├── t2_port.py       # Port occupation scenario
-│   ├── t3_dep.py        # Missing dependencies scenario
-│   ├── t4_trap.py       # Healthy system trap scenario
-│   ├── t5_disk_full.py  # Disk full scenario
-│   ├── t6_oom_killer.py # OOM killer scenario
-│   ├── t7_cascading_meltdown.py # Cascading meltdown scenario
-│   ├── t8_memory_leak_loop.py # Memory leak loop scenario
-│   ├── t9_dependency_chain_failure.py # Dependency chain scenario
-│   └── t10_config_secret_failure.py # Secret configuration scenario
-├── grader/
-│   ├── base.py          # BaseGrader abstract class
-│   └── health_check.py  # All graders (ConfigGrader, PortGrader, ..., DiskGrader, OOMGrader)
+│   ├── main.py               # FastAPI + Gradio mount
+│   ├── ui.py                 # Web terminal, Demo Mode, AI Copilot
+│   └── routes/               # /reset /step /state /tasks /grader
 ├── engine/
-│   ├── sandbox.py       # Mock shell command interpreter
-│   ├── filesystem.py    # MockFilesystem (union-FS style base + overlay)
-│   ├── process_manager.py # MockProcessManager
-│   └── security.py      # Command allowlist + timeout guard
-├── scripts/
-│   ├── run_baseline_agent.py  # Hardcoded + LLM agent runner
-│   ├── multi_agent.py         # Advanced multi-agent orchestrator (Commander/Planner/Executor/Critic)
-│   └── train_grpo.py          # Unsloth GRPO RL training pipeline
-├── inference.py         # OpenEnv validator entry point
-└── openenv.yaml         # OpenEnv environment declaration
+│   ├── sandbox.py            # Shell interpreter + echo redirection
+│   ├── filesystem.py         # UnionFS-style layered filesystem
+│   ├── process_manager.py    # Mock ps/netstat/kill
+│   └── security.py           # Command whitelist (df/du/free/top added)
+├── grader/
+│   └── health_check.py       # 10 graders — all with _safe_score()
+├── tasks/
+│   ├── registry.py           # TASK_REGISTRY — single source of truth
+│   ├── t1_config.py → t6_oom_killer.py
+│   ├── t7_cascading_meltdown.py   # 4-step cascade
+│   ├── t8_memory_leak_loop.py     # crash-restart loop
+│   ├── t9_dependency_chain_failure.py  # ordered restart
+│   └── t10_config_secret_failure.py   # secret injection
+└── scripts/
+    ├── run_baseline_agent.py  # hardcoded + LLM baselines
+    ├── train_grpo.py          # Unsloth GRPO — all 10 tasks
+    └── multi_agent.py         # Commander→Planner→Executor→Critic
 ```
 
 ---
 
 ## 🔒 Reward Safety
 
-All rewards are strictly clamped to the open interval **(0.01, 0.989)** using a single `_safe_score()` function:
-=======
-```
+All rewards are strictly clamped to the open interval **(0.01, 0.989)** using a single `_safe_score()` function.
+Double-enforced: at grader level AND at API route level.
+
+```text
 Agent                     Auto-SRE Environment
   │                              │
   │── POST /reset ──────────────▶│  Broken state initialized (randomized PIDs/ports)
@@ -298,7 +286,6 @@ if db_running:                total += 0.25  # restarted DB
 ### Strict Bounds
 
 All rewards clamped to **(0.01, 0.989)** — never `0.0` or `1.0`:
->>>>>>> Stashed changes
 
 ```python
 _SCORE_MIN = 0.01
@@ -309,10 +296,7 @@ def _safe_score(raw: float) -> float:
     return max(_SCORE_MIN, min(_SCORE_MAX, score))
 ```
 
-<<<<<<< Updated upstream
 This prevents the `0.0` or `1.0` boundary values that cause OpenEnv Phase 2 validation failures.
-=======
-Double-enforced: at grader level AND at API route level.
 
 ---
 
@@ -333,7 +317,7 @@ Double-enforced: at grader level AND at API route level.
 
 `scripts/multi_agent.py` implements a 4-role pipeline:
 
-```
+```text
 Commander  →  Planner  →  Executor  →  Critic
     │             │            │           │
   loads         builds       runs      evaluates
@@ -385,7 +369,9 @@ After training, `reward_curve.png` is saved with:
 - **Overall reward curve** across all training steps
 - **Per-task bar chart** showing average reward per scenario
 
-```
+![Reward Curve](./reward_curve.png)
+
+```text
 [REWARD LOG] Avg: 0.0100 | Step 1    ← model starts with random commands
 [REWARD LOG] Avg: 0.1523 | Step 8
 [REWARD LOG] Avg: 0.3847 | Step 24
@@ -422,7 +408,6 @@ curl -X POST http://localhost:8000/step -d '{"command": "systemctl restart cache
 curl -X POST http://localhost:8000/step -d '{"command": "systemctl restart app"}'
 # → {"reward": 0.989, "done": true}
 ```
->>>>>>> Stashed changes
 
 ---
 
@@ -439,7 +424,6 @@ cd auto-dev-/auto-sre
 pip install -e ".[dev]"
 ```
 
-<<<<<<< Updated upstream
 ### 3. Configure environment
 ```bash
 cp .env.example .env
@@ -448,19 +432,12 @@ cp .env.example .env
 
 ### 4. Run locally
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 7860
-=======
-# Optional: AI Copilot
-cp .env.example .env
-# Add OPENAI_API_KEY to .env
-
 python -m uvicorn app.main:app --reload --port 8000
 # API: http://localhost:8000
 # UI:  http://localhost:8000/
->>>>>>> Stashed changes
 ```
 
-Then open **http://localhost:7860** in your browser.
+Then open **http://localhost:8000** in your browser.
 
 ---
 
@@ -471,7 +448,6 @@ Then open **http://localhost:7860** in your browser.
 pytest tests/
 ```
 
-<<<<<<< Updated upstream
 ### Run the baseline agent
 ```bash
 python scripts/run_baseline_agent.py
@@ -523,91 +499,13 @@ Average reward across all tasks: 0.9390
 
 ### Check available tasks
 ```bash
-curl http://localhost:7860/tasks
+curl http://localhost:8000/tasks
 ```
-
----
-
-## 📡 API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/reset` | Initialize a task environment |
-| `POST` | `/step` | Execute a shell command |
-| `GET` | `/grader` | Get current reward and done status |
-| `GET` | `/state` | Get full environment snapshot |
-| `GET` | `/tasks` | List all available task IDs |
-| `GET` | `/healthz` | Health check |
-
----
-
-## 🔧 Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | No | — | Enables live AI Copilot hints |
-| `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` | LLM proxy URL |
-| `OPENAI_MODEL` | No | `gpt-4o-mini` | Model for AI Copilot |
-| `STEP_TIMEOUT` | No | `5` | Max seconds per command |
-=======
-### Run Multi-Agent Demo
-
-```bash
-python scripts/multi_agent.py
-```
-
-### Run Baseline Agent
-
-```bash
-python scripts/run_baseline_agent.py
-```
->>>>>>> Stashed changes
 
 ---
 
 ## 🏆 OpenEnv Compliance
 
-<<<<<<< Updated upstream
-- ✅ Phase 1: STDOUT format `[STEP] ... reward=X.XX` / `[END] ... rewards=...`
-- ✅ Phase 2: All rewards strictly in open interval `(0, 1)` — no `0.0` or `1.0` values
-- ✅ All 10 tasks registered in `openenv.yaml` with correct grader paths
-- ✅ `/reset`, `/step`, `/grader`, `/healthz` endpoints functional
-=======
-```
-auto-sre/
-├── openenv.yaml              # OpenEnv spec — all 10 tasks
-├── app/
-│   ├── main.py               # FastAPI + Gradio mount
-│   ├── ui.py                 # Web terminal, Demo Mode, AI Copilot
-│   └── routes/               # /reset /step /state /tasks /grader
-├── engine/
-│   ├── sandbox.py            # Shell interpreter + echo redirection
-│   ├── filesystem.py         # UnionFS-style layered filesystem
-│   ├── process_manager.py    # Mock ps/netstat/kill
-│   └── security.py           # Command whitelist (df/du/free/top added)
-├── grader/
-│   └── health_check.py       # 10 graders — all with _safe_score()
-├── tasks/
-│   ├── registry.py           # TASK_REGISTRY — single source of truth
-│   ├── t1_config.py → t6_oom_killer.py
-│   ├── t7_cascading_meltdown.py   # 4-step cascade
-│   ├── t8_memory_leak_loop.py     # crash-restart loop
-│   ├── t9_dependency_chain_failure.py  # ordered restart
-│   └── t10_config_secret_failure.py   # secret injection
-└── scripts/
-    ├── run_baseline_agent.py  # hardcoded + LLM baselines
-    ├── train_grpo.py          # Unsloth GRPO — all 10 tasks
-    └── multi_agent.py         # Commander→Planner→Executor→Critic
-```
->>>>>>> Stashed changes
-
----
-
-## 📄 License
-
-<<<<<<< Updated upstream
-MIT License — see [LICENSE](LICENSE) for details.
-=======
 - ✅ **Phase 1**: STDOUT format `[STEP] ... reward=X.XX`
 - ✅ **Phase 2**: All rewards strictly in `(0.01, 0.989)` — double-enforced
 - ✅ All 10 tasks registered in `openenv.yaml` — synced with `TASK_REGISTRY`
@@ -636,4 +534,3 @@ MIT — see `LICENSE` for details.
 ---
 
 *Built for the OpenEnv Hackathon 2026 — Real-World Infrastructure Track*
->>>>>>> Stashed changes

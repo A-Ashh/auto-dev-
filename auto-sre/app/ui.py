@@ -492,13 +492,29 @@ with gr.Blocks() as demo:
             yield logs, term_out, cwd, reward, health_str, history_html
             await asyncio.sleep(0.5)
 
-            cmds = DEMO_SOLUTIONS.get(task_id, ["ps"])
+        import sys
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        from scripts.multi_agent import Planner, Critic
+
+        planner = Planner()
+        critic = Critic()
+        critic_feedback = "initial"
+
+        for iteration in range(3):
+            # Fetch state to plan
+            async with httpx.AsyncClient() as client:
+                state_resp = await client.get(f"{API_BASE}/state")
+                state = state_resp.json().get("state", {})
+            
+            cmds = planner.plan(state, critic_feedback)
+            if not cmds:
+                break
+                
+            logs += f"📋 Planner (Iter {iteration+1}): Generated {len(cmds)} commands.\n"
+            yield logs, term_out, cwd, reward, health_str, history_html
+            await asyncio.sleep(0.5)
 
             for cmd in cmds:
-                # Substitute rogue PID
-                if "{rogue_pid}" in cmd:
-                    cmd = cmd.replace("{rogue_pid}", str(known_rogue_pid) if known_rogue_pid else "999")
-
                 logs += f"⚙️ Executor: Running `{cmd}`\n"
                 yield logs, term_out, cwd, reward, health_str, history_html
 
@@ -513,17 +529,6 @@ with gr.Blocks() as demo:
                     cwd = obs_data.get("cwd", cwd)
                     reward = d.get("reward", reward)
                     done = d.get("done", False)
-
-                    # Parse rogue PID
-                    if cmd.strip().startswith("ps") and stdout and known_rogue_pid is None:
-                        for line in stdout.splitlines():
-                            low = line.lower()
-                            if any(k in low for k in ("rogue", "leak-daemon --no-limit", "rogue-logger", "rogue-server", "memory-hog")):
-                                parts = line.split()
-                                for p in parts:
-                                    if p.isdigit() and int(p) > 1:
-                                        known_rogue_pid = int(p)
-                                        break
 
                     obs = stdout or stderr or ""
                     term_out += f"$ {cmd}\n{obs}\n"
@@ -547,6 +552,14 @@ with gr.Blocks() as demo:
                     term_out += f"$ {cmd}\n[ERROR: {e}]\n"
                     yield logs, term_out, cwd, reward, health_str, history_html
                     break
+            
+            if done:
+                break
+                
+            # Critic evaluation
+            retry, critic_feedback = critic.evaluate(reward, reward, done)
+            if not retry:
+                break
 
             logs += "🔍 Critic: Evaluating system state...\n"
             yield logs, term_out, cwd, reward, health_str, history_html
