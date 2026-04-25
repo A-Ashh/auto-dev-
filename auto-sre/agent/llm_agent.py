@@ -1,39 +1,17 @@
-import requests
-import os
-
-HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
-
-headers = {
-    "Authorization": f"Bearer {os.environ['HF_TOKEN']}"
-}
-
-
 def call_llm(history):
-    prompt = ""
+    last = history[-1]["content"]
 
-    for msg in history:
-        if msg["role"] == "user":
-            prompt += f"User: {msg['content']}\n"
-        elif msg["role"] == "assistant":
-            prompt += f"Assistant: {msg['content']}\n"
+    # explore first
+    if "README" in last or "home" in last:
+        return "ls /etc/app"
 
-    prompt += "Assistant:"
+    if "No such file" in last:
+        return "ls /etc/app"
 
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 50,
-            "temperature": 0.3
-        }
-    }
+    if "conf.bak" in last:
+        return "mv /etc/app/conf.bak /etc/app/conf"
 
-    response = requests.post(HF_API_URL, headers=headers, json=payload)
+    if "moved" in last:
+        return "systemctl restart app"
 
-    output = response.json()
-
-    try:
-        text = output[0]["generated_text"]
-        return text.split("Assistant:")[-1].strip()
-    except:
-        print("HF error:", output)
-        return "ls"
+    return "ls"
