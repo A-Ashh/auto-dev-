@@ -7,8 +7,7 @@ from typing import Optional
 
 from app.schemas.action import ResetRequest
 from app.schemas.observation import Observation, ResetResponse
-from app.routes._session import get_session
-
+from auto_sre.app.routes._session import get_session
 router = APIRouter()
 
 
