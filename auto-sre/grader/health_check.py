@@ -27,26 +27,31 @@ def base_reward(command_history):
 class ConfigGrader(BaseGrader):
     def grade(self, filesystem, process_manager, command_history, state=None):
         state = state or {}
+
         config_fixed = filesystem.exists("/etc/app/conf")
         app_running = state.get("services_running", {}).get("app", False)
 
-        reward = base_reward(command_history)
+        # 🔥 STEP PENALTY (important)
+        reward = 0.05 - 0.02 * len(command_history)
 
+        # ✅ positive signals
         if config_fixed:
-            reward += 0.40
-        if app_running:
-            reward += 0.50
+            reward += 0.4
 
+        if app_running:
+            reward += 0.5
+
+        # ❌ no progress penalty
         if not config_fixed and not app_running:
             reward -= 0.05
 
+        # ⚡ efficiency bonus
         if config_fixed and app_running and len(command_history) <= 5:
             reward += 0.05
 
-        done = (config_fixed and app_running)
+        done = config_fixed and app_running
+
         return _safe_score(reward), done, "State evaluated"
-
-
 # ---------------- PORT ----------------
 class PortGrader(BaseGrader):
     def grade(self, filesystem, process_manager, command_history, state=None):
