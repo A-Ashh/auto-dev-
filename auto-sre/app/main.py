@@ -9,7 +9,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from auto_sre.app.routes import reset, step, state, tasks, grader, baseline
 from auto_sre.app.ui import demo
-
+@app.get("/ping")
+def ping():
+    return {"msg": "pong"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
