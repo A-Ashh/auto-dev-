@@ -22,6 +22,7 @@ app = FastAPI(
     description="An OpenEnv-compliant environment for evaluating AI SRE agents on Linux infrastructure repair tasks.",
     version="0.1.0",
     lifespan=lifespan,
+    root_path=""
 )
 
 # CORS (allow all during development)

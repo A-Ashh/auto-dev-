@@ -204,9 +204,12 @@ def update_task_description(task_id: str) -> str:
 import requests
 
 def safe_post(path, body):
-    print(f"[DEBUG] Calling -> {ENV_URL}{path}")
     try:
-        resp = requests.post(f"{ENV_URL}{path}", json=body, timeout=60)
+        print(f"[DEBUG] CALLING → {ENV_URL}{path}")
+    except UnicodeEncodeError:
+        print(f"[DEBUG] CALLING -> {ENV_URL}{path}")
+    try:
+        resp = requests.post(f"{ENV_URL}{path}", json=body, timeout=120)
         return resp.json()
     except Exception as e:
         return {
@@ -216,9 +219,12 @@ def safe_post(path, body):
         }
 
 def safe_get(path):
-    print(f"[DEBUG] Calling -> {ENV_URL}{path}")
     try:
-        resp = requests.get(f"{ENV_URL}{path}", timeout=60)
+        print(f"[DEBUG] CALLING → {ENV_URL}{path}")
+    except UnicodeEncodeError:
+        print(f"[DEBUG] CALLING -> {ENV_URL}{path}")
+    try:
+        resp = requests.get(f"{ENV_URL}{path}", timeout=120)
         return resp.json()
     except Exception as e:
         return {

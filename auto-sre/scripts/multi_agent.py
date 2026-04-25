@@ -21,16 +21,22 @@ _SCORE_MAX = 0.989
 
 def check_env():
     try:
-        print(f"[DEBUG] Calling -> {ENV_URL}/state")
-        resp = requests.get(f"{ENV_URL}/state", timeout=60)
+        try:
+            print(f"[DEBUG] CALLING → {ENV_URL}/state")
+        except UnicodeEncodeError:
+            print(f"[DEBUG] CALLING -> {ENV_URL}/state")
+        resp = requests.get(f"{ENV_URL}/state", timeout=120)
         return resp.status_code == 200
     except Exception:
         return False
 
 def safe_post(path, body):
-    print(f"[DEBUG] Calling -> {ENV_URL}{path}")
     try:
-        resp = requests.post(f"{ENV_URL}{path}", json=body, timeout=60)
+        print(f"[DEBUG] CALLING → {ENV_URL}{path}")
+    except UnicodeEncodeError:
+        print(f"[DEBUG] CALLING -> {ENV_URL}{path}")
+    try:
+        resp = requests.post(f"{ENV_URL}{path}", json=body, timeout=120)
         return resp.json()
     except Exception as e:
         return {
@@ -40,9 +46,12 @@ def safe_post(path, body):
         }
 
 def _get(path: str) -> dict:
-    print(f"[DEBUG] Calling -> {ENV_URL}{path}")
     try:
-        resp = requests.get(f"{ENV_URL}{path}", timeout=60)
+        print(f"[DEBUG] CALLING → {ENV_URL}{path}")
+    except UnicodeEncodeError:
+        print(f"[DEBUG] CALLING -> {ENV_URL}{path}")
+    try:
+        resp = requests.get(f"{ENV_URL}{path}", timeout=120)
         return resp.json()
     except Exception as e:
         return {
