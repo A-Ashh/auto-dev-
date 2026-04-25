@@ -8,7 +8,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import reset, step, state, tasks, grader, baseline
+from auto_sre.app.routes import reset, step, state, tasks, grader, baseline
 
 
 @asynccontextmanager
@@ -50,9 +50,9 @@ async def healthz() -> dict[str, str]:
 
 # Mount the Gradio UI at root — FastAPI API routes take priority over Gradio's wildcard
 import gradio as gr
-from app.ui import demo
+from auto_sre.app.ui import demo
 app = gr.mount_gradio_app(app, demo, path="/")
 
 def main():
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=7860)
+    uvicorn.run("auto_sre.app.main:app", host="0.0.0.0", port=7860)
