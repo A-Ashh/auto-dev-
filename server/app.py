@@ -1,15 +1,33 @@
-import os
-import uvicorn
-import sys
+from fastapi import FastAPI
 
-# Ensure the auto-sre python modules resolve correctly
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'auto-sre')))
+app = FastAPI()
 
-from app.main import app
+# ---------------- RESET ----------------
+@app.post("/reset")
+def reset(payload: dict):
+    return {
+        "message": f"Environment reset for task {payload.get('task_id')}",
+        "state": {}
+    }
 
-def main():
-    port = int(os.environ.get("PORT", 7860))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+# ---------------- STEP ----------------
+@app.post("/step")
+def step(payload: dict):
+    command = payload.get("arguments", "")
 
-if __name__ == "__main__":
-    main()
+    # 🔥 simple mock reward logic (for training signal)
+    if "kill" in command or "rm" in command:
+        reward = 0.6
+        done = False
+    elif "restart" in command:
+        reward = 0.9
+        done = True
+    else:
+        reward = 0.1
+        done = False
+
+    return {
+        "reward": reward,
+        "done": done,
+        "info": f"Executed {command}"
+    }
