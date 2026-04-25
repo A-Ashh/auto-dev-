@@ -117,7 +117,7 @@ def main():
         model_name=MODEL_NAME,
         max_seq_length=MAX_SEQ_LENGTH,
         load_in_4bit=True,
-        fast_inference=True,
+        fast_inference=False,
         max_lora_rank=LORA_RANK,
         gpu_memory_utilization=0.6,
     )
@@ -160,14 +160,14 @@ def main():
         ])
 
     # Expand to at least 32 examples for training stability
-    while len(prompts) < 32:
-        prompts.extend(prompts[:max(1, 32 - len(prompts))])
+    while len(prompts) < 128:
+        prompts.extend(prompts[:max(1, 128 - len(prompts))])
 
-    dataset = Dataset.from_dict({"prompt": prompts[:32]})
+    dataset = Dataset.from_dict({"prompt": prompts[:128]})
 
     training_args = GRPOConfig(
-        use_vllm=True,
-        learning_rate=5e-6,
+        use_vllm=False,
+        learning_rate=1e-5,
         adam_beta1=0.9,
         adam_beta2=0.99,
         weight_decay=0.1,
@@ -182,7 +182,7 @@ def main():
         num_generations=8,
         max_prompt_length=256,
         max_completion_length=256,
-        num_train_epochs=5,
+        num_train_epochs=10,
         save_steps=100,
         max_grad_norm=0.1,
         output_dir="outputs",
@@ -200,7 +200,8 @@ def main():
     trainer.train()
 
     print("Saving model...")
-    model.save_lora("grpo_auto_sre_lora")
+    model.save_pretrained("grpo_auto_sre_lora")
+    tokenizer.save_pretrained("grpo_auto_sre_lora")
     print("Training complete!")
 
     # --- Per-task reward summary ---
