@@ -182,7 +182,7 @@ def main():
         num_generations=8,
         max_prompt_length=256,
         max_completion_length=256,
-        num_train_epochs=3,
+        num_train_epochs=1,
         save_steps=100,
         max_grad_norm=0.1,
         output_dir="outputs",
