@@ -5,8 +5,7 @@ from __future__ import annotations
 import math
 
 from fastapi import APIRouter, HTTPException
-from app.routes._session import get_session
-
+from auto_sre.app.routes._session import get_session
 router = APIRouter()
 
 _SCORE_MIN = 0.01
