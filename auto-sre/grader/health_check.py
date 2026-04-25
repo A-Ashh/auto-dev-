@@ -20,8 +20,7 @@ def _safe_score(raw: float) -> float:
 
 # 🔥 Common reward template
 def base_reward(command_history):
-    return 0.05 - 0.02 * len(command_history)
-
+    return 0.12 - 0.01 * len(command_history)
 
 # ---------------- CONFIG ----------------
 class ConfigGrader(BaseGrader):
@@ -32,7 +31,7 @@ class ConfigGrader(BaseGrader):
         app_running = state.get("services_running", {}).get("app", False)
 
         # 🔥 STEP PENALTY (important)
-        reward = 0.05 - 0.02 * len(command_history)
+        reward = base_reward(command_history)
 
         # ✅ positive signals
         if config_fixed:
@@ -43,7 +42,7 @@ class ConfigGrader(BaseGrader):
 
         # ❌ no progress penalty
         if not config_fixed and not app_running:
-            reward -= 0.05
+            reward -= 0.02
 
         # ⚡ efficiency bonus
         if config_fixed and app_running and len(command_history) <= 5:
@@ -196,7 +195,7 @@ class CascadeGrader(BaseGrader):
 
         # ❗ penalize no progress
         if not (log_cleared or rogue_dead or db_running):
-            reward -= 0.08
+            reward -= 0.03
 
         # ❗ bonus for efficient solution
         if log_cleared and rogue_dead and db_running and len(command_history) <= 7:
