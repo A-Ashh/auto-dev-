@@ -142,6 +142,10 @@ class Executor:
                 state = result.get("state", {})
                 
                 print(f"[DEBUG STEP] cmd: '{cmd}', reward: {last_reward}, health_status: {state.get('health_status')}, done: {result.get('done')}")
+                if stdout:
+                    print(f"[STDOUT]\n{stdout.strip()}\n[/STDOUT]")
+                if stderr:
+                    print(f"[STDERR]\n{stderr.strip()}\n[/STDERR]")
 
                 executed.append(cmd)
                 steps_taken += 1

@@ -464,113 +464,88 @@ with gr.Blocks() as demo:
             yield "Please select a task.", "", "", 0.01, "<span class='health-neutral'>&#9898; NO TASK</span>", ""
             return
 
-        logs = "🧠 Commander: Initializing environment...\n"
+        logs = "🧠 Commander: Starting hardened Multi-Agent...\n"
         term_out = f"=== Multi-Agent MODE ===\nTask: {task_id}\nInitializing...\n\n"
         history_html = ""
         reward = 0.01
         done = False
-        known_rogue_pid = None
         cwd = "/home/user"
         health_str = "<span class='health-wait'>&#9888; AWAITING FIX</span>"
 
         yield logs, term_out, cwd, reward, health_str, history_html
 
-        async with httpx.AsyncClient() as client:
-            try:
-                resp = await client.post(f"{API_BASE}/reset", json={"task_id": task_id})
-                resp.raise_for_status()
-                data = resp.json()
-                cwd = data.get("cwd", "/home/user")
-            except Exception as e:
-                logs += f"❌ Commander Error: {e}\n"
-                yield logs, term_out, cwd, reward, health_str, history_html
-                return
+        process = await asyncio.create_subprocess_exec(
+            "python", "scripts/multi_agent.py", task_id,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
 
-            await asyncio.sleep(0.5)
+        in_stdout = False
+        in_stderr = False
+        current_out = ""
+        current_cmd = ""
 
-            logs += "📋 Planner: Generating execution plan...\n"
-            yield logs, term_out, cwd, reward, health_str, history_html
-            await asyncio.sleep(0.5)
-
-        import sys
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-        from scripts.multi_agent import Planner, Critic
-
-        planner = Planner()
-        critic = Critic()
-        critic_feedback = "initial"
-
-        for iteration in range(3):
-            # Fetch state to plan
-            async with httpx.AsyncClient() as client:
-                state_resp = await client.get(f"{API_BASE}/state")
-                state = state_resp.json().get("state", {})
-            
-            cmds = planner.plan(state, critic_feedback)
-            if not cmds:
+        while True:
+            line = await process.stdout.readline()
+            if not line:
                 break
+            
+            decoded = line.decode().strip()
+            
+            if decoded.startswith("[DEBUG STEP] cmd:"):
+                # Parse [DEBUG STEP] cmd: 'ls', reward: 0.01, health_status: None, done: False
+                parts = decoded.split("', reward: ")
+                current_cmd = parts[0].replace("[DEBUG STEP] cmd: '", "")
                 
-            logs += f"📋 Planner (Iter {iteration+1}): Generated {len(cmds)} commands.\n"
-            yield logs, term_out, cwd, reward, health_str, history_html
-            await asyncio.sleep(0.5)
-
-            for cmd in cmds:
-                logs += f"⚙️ Executor: Running `{cmd}`\n"
+                if "done: True" in decoded:
+                    done = True
+                    reward_str = parts[1].split(",")[0]
+                    reward = float(reward_str)
+                
+                logs += f"⚙️ Executor: Running `{current_cmd}`\n"
+                term_out += f"$ {current_cmd}\n"
                 yield logs, term_out, cwd, reward, health_str, history_html
 
-                try:
-                    resp = await client.post(f"{API_BASE}/step", json={"tool": "run_command", "arguments": cmd})
-                    resp.raise_for_status()
-                    d = resp.json()
-
-                    obs_data = d.get("observation", d)
-                    stdout = obs_data.get("stdout", "")
-                    stderr = obs_data.get("stderr", "")
-                    cwd = obs_data.get("cwd", cwd)
-                    reward = d.get("reward", reward)
-                    done = d.get("done", False)
-
-                    obs = stdout or stderr or ""
-                    term_out += f"$ {cmd}\n{obs}\n"
-                    h_entry = f"<div class='history-item'><b>&gt; {cmd}</b><br><span class='history-out'>{obs}</span></div>"
-                    history_html = h_entry + history_html
-
-                    # Update health strictly
-                    if done and reward > 0.5:
-                        health_str = "<span class='health-good'>&#129001; HEALTHY (PASS)</span>"
-                    elif done:
-                        health_str = "<span class='health-bad'>&#10060; FAILED</span>"
-
-                    yield logs, term_out, cwd, reward, health_str, history_html
-                    await asyncio.sleep(0.8)
-
-                    if done:
-                        break
-
-                except Exception as e:
-                    logs += f"❌ Executor Error: {e}\n"
-                    term_out += f"$ {cmd}\n[ERROR: {e}]\n"
-                    yield logs, term_out, cwd, reward, health_str, history_html
-                    break
-            
-            if done:
-                break
-                
-            # Critic evaluation
-            retry, critic_feedback = critic.evaluate(reward, reward, done)
-            if not retry:
-                break
-
-            logs += "🔍 Critic: Evaluating system state...\n"
-            yield logs, term_out, cwd, reward, health_str, history_html
-            await asyncio.sleep(0.5)
-
-            if done and reward > 0.5:
-                logs += "✅ Task execution complete\n"
+            elif decoded == "[STDOUT]":
+                in_stdout = True
+                current_out = ""
+            elif decoded == "[/STDOUT]":
+                in_stdout = False
+                term_out += f"{current_out.strip()}\n"
+                h_entry = f"<div class='history-item'><b>&gt; {current_cmd}</b><br><span class='history-out'>{current_out.strip()}</span></div>"
+                history_html = h_entry + history_html
+                yield logs, term_out, cwd, reward, health_str, history_html
+            elif decoded == "[STDERR]":
+                in_stderr = True
+                current_out = ""
+            elif decoded == "[/STDERR]":
+                in_stderr = False
+                term_out += f"[ERROR] {current_out.strip()}\n"
+                h_entry = f"<div class='history-item'><b>&gt; {current_cmd}</b><br><span class='history-out' style='color:#ef4444;'>{current_out.strip()}</span></div>"
+                history_html = h_entry + history_html
+                yield logs, term_out, cwd, reward, health_str, history_html
+            elif decoded.startswith("{") and "average_reward" in decoded:
+                pass # Final JSON dump
+            elif in_stdout or in_stderr:
+                current_out += decoded + "\n"
             else:
-                logs += "⚠️ Task execution failed to reach healthy state\n"
-                
-            yield logs, term_out, cwd, reward, health_str, history_html
+                pass
+
+        await process.wait()
+        
+        # Parse final JSON summary from stdout if needed, but we already have `done` and `reward`
+        if done and reward > 0.5:
+            health_str = "<span class='health-good'>&#129001; HEALTHY (PASS)</span>"
+            logs += "✅ Task execution complete\n"
+        elif done:
+            health_str = "<span class='health-bad'>&#10060; FAILED</span>"
+            logs += "⚠️ Task execution failed to reach healthy state\n"
+        else:
+            health_str = "<span class='health-bad'>&#10060; FAILED</span>"
+            logs += "⚠️ Task aborted or stuck\n"
+
+        yield logs, term_out, cwd, reward, health_str, history_html
 
     run_agent_btn.click(
         fn=run_multi_agent,
