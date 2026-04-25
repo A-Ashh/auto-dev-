@@ -67,7 +67,7 @@ class PortGrader(BaseGrader):
             reward += 0.50
 
         if not rogue_killed and not app_running:
-            reward -= 0.05
+            reward -= 0.02
 
         if rogue_killed and app_running and len(command_history) <= 5:
             reward += 0.05
