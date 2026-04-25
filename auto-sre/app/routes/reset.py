@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Body
 from typing import Optional
-
-from app.schemas.action import ResetRequest
+from auto_sre.app.schemas.action import ResetRequest  
 from app.schemas.observation import Observation, ResetResponse
 from auto_sre.app.routes._session import get_session
 router = APIRouter()
