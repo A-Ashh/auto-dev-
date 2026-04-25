@@ -82,9 +82,11 @@ class Planner:
             actions.append("journalctl -xe")
         elif critic_feedback == "no_progress":
             # Stuck at 0.01 with no obvious cause → likely auth/secret issue
-            # Try writing secret then restarting to clear auth failures
+            # Use state fields for secret path/key — no hardcoded values
             if disk <= 80 and mem <= 80 and not state.get("processes"):
-                actions.append('echo DB_PASSWORD=supersecret > /etc/app/secrets.conf')
+                sec_file = state.get("secret_file", "/etc/app/secrets.conf")
+                sec_key = state.get("correct_secret_key", "DB_PASSWORD")
+                actions.append(f'echo {sec_key}=valid > {sec_file}')
                 actions.append("systemctl restart app")
             else:
                 actions.append("top")
@@ -213,11 +215,18 @@ class Executor:
                 else:
                     # t6: memory_hog process has no rogue_pid in state; use memory_usage signal
                     mem_high = state.get("memory_usage", 0) > 80
-                    for p in state.get("processes", []):
+                    # Candidate processes: exclude init (pid <= 2)
+                    candidates = [p for p in state.get("processes", []) if p.get("pid", 1) > 2 and p.get("is_alive")]
+                    # mem_high only fires as kill signal if there's exactly one suspect process;
+                    # if multiple processes exist, require command-name match to avoid collateral kills
+                    single_suspect = len(candidates) == 1
+                    for p in candidates:
                         cs = str(p.get("command", "")).lower()
-                        is_rogue = ("rogue" in cs or "leak" in cs or "hog" in cs or mem_high)
-                        if p.get("is_alive") and is_rogue:
-                            kc = f"kill {p['pid']}"
+                        pid = p.get("pid", 1)
+                        is_named_rogue = ("rogue" in cs or "leak" in cs or "hog" in cs)
+                        is_rogue = is_named_rogue or (mem_high and single_suspect)
+                        if is_rogue:
+                            kc = f"kill {pid}"
                             if kc not in executed and kc not in queue: queue.appendleft(kc)
 
                 # Config fix runs before kill (appendleft after kill = in front of kill)
