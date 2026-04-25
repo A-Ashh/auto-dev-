@@ -227,7 +227,7 @@ def safe_get(path):
             "error": str(e)
         }
 
-async def run_demo(task_id: str):
+def run_demo(task_id: str):
     """Auto-run the known solution commands for the selected task."""
     if not task_id:
         return "Select a task first.", "", 0.01, "<span class='health-neutral'>&#9898; NO TASK</span>", ""
@@ -292,7 +292,7 @@ async def run_demo(task_id: str):
 
     return term_out, cwd, reward, health_str, history_html
 
-async def api_reset(task_id: str):
+def api_reset(task_id: str):
     """Call the backend reset endpoint."""
     if not task_id:
         return "Please select a scenario.", "", 0.01, "<span class='health-neutral'>&#9898; NO TASK</span>", "No task selected."
@@ -304,7 +304,7 @@ async def api_reset(task_id: str):
     cwd = data.get("cwd", "/home/user")
     return f"--- Auto-SRE Sandbox Initialized ---\nWelcome to Scenario: {task_id}\nHint: Type shell commands to diagnose and repair.\n\n$ {cwd} > ", cwd, 0.01, "<span class='health-bad'>&#10060; BROKEN</span>", "Sandbox reset."
 
-async def api_step(tool: str, cmd_input: str, current_cwd: str, term_history: str, history_html: str):
+def api_step(tool: str, cmd_input: str, current_cwd: str, term_history: str, history_html: str):
     """Call the backend step endpoint and format the terminal output."""
     if not cmd_input.strip():
         return term_history, "", current_cwd, 0.0, "<span class='health-neutral'>&#9898; NO TASK</span>", history_html
