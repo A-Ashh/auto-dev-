@@ -87,7 +87,10 @@ def decide_command(obs: dict, state: dict, command_history: list[str]) -> str | 
         if not ran("cat /etc/app/secrets.conf"): return "cat /etc/app/secrets.conf"
         
         # Sequentially try to restore config or secret if app fails to start
-        if not ran("echo"): return 'echo "DB_PASSWORD=supersecret" > /etc/app/secrets.conf'
+        sec_file = state.get("secret_file", "/etc/app/secrets.conf")
+        sec_key = state.get("correct_secret_key", "DB_PASSWORD")
+        sec_cmd = f'echo {sec_key}=valid > {sec_file}'
+        if not ran("echo"): return sec_cmd
         if not ran("mv"): return "mv /etc/app/conf.bak /etc/app/conf"
         if not ran("systemctl restart app"): return "systemctl restart app"
 
