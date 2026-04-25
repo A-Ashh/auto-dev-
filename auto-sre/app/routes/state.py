@@ -6,8 +6,7 @@ from fastapi import APIRouter
 from typing import Any
 
 from app.schemas.observation import CommandEntry, RichStateResponse
-from app.routes._session import get_session
-
+from auto_sre.app.routes._session import get_session
 router = APIRouter()
 
 
