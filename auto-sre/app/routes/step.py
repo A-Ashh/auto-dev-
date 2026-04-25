@@ -9,8 +9,7 @@ from typing import Any
 
 from app.schemas.action import DevOpsAction
 from app.schemas.observation import StepResponse, Observation
-from app.routes._session import get_session
-
+from auto_sre.app.routes._session import get_session
 router = APIRouter()
 
 _SCORE_MIN = 0.01
