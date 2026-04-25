@@ -61,64 +61,61 @@ async def get_grader_score() -> dict:
     }
 
 
-@router.get("/grade/task_1", tags=["Environment"])
+DOCSTRING = """
+Evaluate task success based STRICTLY on system state transitions.
+
+The reward is derived purely from system health (e.g., config_fixed, app_running, disk_freed, rogue_dead).
+There is ZERO command string matching used for the core reward.
+Rewards map to real environment interaction, not text generation.
+"""
+
+@router.get("/grade/task_1", tags=["Environment"], summary="Grade Task 1", description=DOCSTRING)
 async def grade_task_1() -> dict:
     session = get_session()
     try:
-        if not session.task_def or session.task_def.task_id != "t1_config":
-            session.load_task("t1_config")
+        if not session.task_def or session.task_def.task_id != "t1_config": session.load_task("t1_config")
         reward, _, _ = session.task_def.grader.grade(session.sandbox.fs, session.sandbox.pm, session.sandbox.command_history, session.sandbox.state)
         reward = _safe_reward(reward)
         return {"score": reward, "reward": reward}
-    except Exception:
-        return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
+    except Exception: return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
 
-@router.get("/grade/task_2", tags=["Environment"])
+@router.get("/grade/task_2", tags=["Environment"], summary="Grade Task 2", description=DOCSTRING)
 async def grade_task_2() -> dict:
     session = get_session()
     try:
-        if not session.task_def or session.task_def.task_id != "t2_port":
-            session.load_task("t2_port")
+        if not session.task_def or session.task_def.task_id != "t2_port": session.load_task("t2_port")
         reward, _, _ = session.task_def.grader.grade(session.sandbox.fs, session.sandbox.pm, session.sandbox.command_history, session.sandbox.state)
         reward = _safe_reward(reward)
         return {"score": reward, "reward": reward}
-    except Exception:
-        return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
+    except Exception: return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
 
-@router.get("/grade/task_3", tags=["Environment"])
+@router.get("/grade/task_3", tags=["Environment"], summary="Grade Task 3", description=DOCSTRING)
 async def grade_task_3() -> dict:
     session = get_session()
     try:
-        if not session.task_def or session.task_def.task_id != "t3_dep":
-            session.load_task("t3_dep")
+        if not session.task_def or session.task_def.task_id != "t3_dep": session.load_task("t3_dep")
         reward, _, _ = session.task_def.grader.grade(session.sandbox.fs, session.sandbox.pm, session.sandbox.command_history, session.sandbox.state)
         reward = _safe_reward(reward)
         return {"score": reward, "reward": reward}
-    except Exception:
-        return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
+    except Exception: return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
 
-@router.get("/grade/task_4", tags=["Environment"])
+@router.get("/grade/task_4", tags=["Environment"], summary="Grade Task 4", description=DOCSTRING)
 async def grade_task_4() -> dict:
     session = get_session()
     try:
-        if not session.task_def or session.task_def.task_id != "t4_trap":
-            session.load_task("t4_trap")
+        if not session.task_def or session.task_def.task_id != "t4_trap": session.load_task("t4_trap")
         reward, _, _ = session.task_def.grader.grade(session.sandbox.fs, session.sandbox.pm, session.sandbox.command_history, session.sandbox.state)
         reward = _safe_reward(reward)
         return {"score": reward, "reward": reward}
-    except Exception:
-        return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
+    except Exception: return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
 
-
-@router.get("/grade/t1_config", tags=["Environment"])
-async def grade_t1_config() -> dict: return await grade_task_1()
-
-@router.get("/grade/t2_port", tags=["Environment"])
-async def grade_t2_port() -> dict: return await grade_task_2()
-
-@router.get("/grade/t3_dep", tags=["Environment"])
-async def grade_t3_dep() -> dict: return await grade_task_3()
-
-@router.get("/grade/t4_trap", tags=["Environment"])
-async def grade_t4_trap() -> dict: return await grade_task_4()
+@router.get("/grade/{task_id}", tags=["Environment"], summary="Grade Any Task", description=DOCSTRING)
+async def grade_any_task(task_id: str) -> dict:
+    session = get_session()
+    try:
+        if not session.task_def or session.task_def.task_id != task_id: session.load_task(task_id)
+        reward, _, _ = session.task_def.grader.grade(session.sandbox.fs, session.sandbox.pm, session.sandbox.command_history, session.sandbox.state)
+        reward = _safe_reward(reward)
+        return {"score": reward, "reward": reward}
+    except Exception: return {"score": _SCORE_MIN, "reward": _SCORE_MIN}
 
