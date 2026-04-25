@@ -1,50 +1,39 @@
 import requests
-from openai import OpenAI
-from agent.prompts import SYSTEM_PROMPT
+import os
 
-client = OpenAI()
+HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
 
-BASE_URL = "http://127.0.0.1:7860"
+headers = {
+    "Authorization": f"Bearer {os.environ['HF_TOKEN']}"
+}
 
 
 def call_llm(history):
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=history,
-        temperature=0.2
-    )
-    return response.choices[0].message.content.strip()
+    prompt = ""
 
+    for msg in history:
+        if msg["role"] == "user":
+            prompt += f"User: {msg['content']}\n"
+        elif msg["role"] == "assistant":
+            prompt += f"Assistant: {msg['content']}\n"
 
-def run_episode(task_id="t1_config", max_steps=6):
-    res = requests.post(f"{BASE_URL}/reset", json={"task_id": task_id}).json()
+    prompt += "Assistant:"
 
-    history = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": str(res["observation"])}
-    ]
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 50,
+            "temperature": 0.3
+        }
+    }
 
-    total_reward = 0
+    response = requests.post(HF_API_URL, headers=headers, json=payload)
 
-    for step in range(max_steps):
-        action = call_llm(history)
+    output = response.json()
 
-        print(f"\nSTEP {step+1}: {action}")
-
-        result = requests.post(
-            f"{BASE_URL}/step",
-            json={"arguments": action}
-        ).json()
-
-        print("REWARD:", result["reward"])
-
-        total_reward += result["reward"]
-
-        history.append({"role": "assistant", "content": action})
-        history.append({"role": "user", "content": str(result["observation"])})
-
-        if result["done"]:
-            print("✅ TASK SOLVED")
-            return total_reward, step + 1, True
-
-    return total_reward, max_steps, False
+    try:
+        text = output[0]["generated_text"]
+        return text.split("Assistant:")[-1].strip()
+    except:
+        print("HF error:", output)
+        return "ls"
