@@ -7,15 +7,17 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# existing routes
 from auto_sre.app.routes import reset, step, state, tasks, grader, baseline
+
+# 👉 NEW IMPORT
+from auto_sre.app.routes import agent
+
 from auto_sre.app.ui import demo
-@app.get("/ping")
-def ping():
-    return {"msg": "pong"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan — startup/shutdown hooks."""
     yield
 
 
@@ -27,7 +29,7 @@ app = FastAPI(
     root_path=""
 )
 
-# CORS (allow all during development)
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,7 +38,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register routes
+# existing routers
 app.include_router(reset.router, tags=["Environment"])
 app.include_router(step.router, tags=["Environment"])
 app.include_router(state.router, tags=["Environment"])
@@ -44,18 +46,29 @@ app.include_router(tasks.router, tags=["Environment"])
 app.include_router(grader.router, tags=["Environment"])
 app.include_router(baseline.router, tags=["Evaluation"])
 
+# 👉 ADD THIS LINE
+app.include_router(agent.router, tags=["Agent"])
+
+
 @app.get("/healthz", tags=["Health"])
 async def healthz() -> dict[str, str]:
-    """Health-check endpoint."""
     return {"status": "ok", "service": "auto-sre"}
 
 
-# Mount the Gradio UI at root — FastAPI API routes take priority over Gradio's wildcard
+@app.get("/ping")
+def ping():
+    return {"msg": "pong"}
+
+
+# Gradio UI
 import gradio as gr
 app = gr.mount_gradio_app(app, demo, path="/")
+
 
 def main():
     import uvicorn
     uvicorn.run("auto_sre.app.main:app", host="0.0.0.0", port=7860)
+
+
 if __name__ == "__main__":
     main()
