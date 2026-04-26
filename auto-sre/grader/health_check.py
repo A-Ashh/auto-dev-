@@ -1,205 +1,178 @@
-from __future__ import annotations
-import math
-from typing import Any
+import requests
+import random
+import json
+import os
+import matplotlib.pyplot as plt
 
-from engine.filesystem import MockFilesystem
-from engine.process_manager import ProcessManager
-from grader.base import BaseGrader
+# ================= CONFIG =================
+BASE_URL = "http://127.0.0.1:7860"
+MODEL_PATH = "/content/q_model.json"
 
-_SCORE_MIN = 0.01
-_SCORE_MAX = 0.989
+ACTIONS = [
+    "ls",
+    "ls /etc",
+    "ls /var/log",
+    "cat /var/log/app.log",
+    "cat /var/log/syslog",
+    "df -h",
+    "free -m",
+    "ps aux",
+    "kill 123",  # placeholder (agent will still learn pattern)
+    "rm /var/log/syslog",
+    "systemctl restart app",
+    "systemctl restart db",
+    "systemctl restart cache",
+]
 
+TASKS = [
+    "t1_config", "t2_port", "t3_dep", "t4_trap",
+    "t5_disk_full", "t6_oom_killer", "t7_cascading_meltdown",
+    "t8_memory_leak_loop", "t9_dependency_chain_failure",
+    "t10_config_secret_failure"
+]
 
-def _safe_score(raw: float) -> float:
-    if raw is None or (isinstance(raw, float) and math.isnan(raw)):
-        return _SCORE_MIN
-    score = float(raw)
-    score = max(_SCORE_MIN, min(_SCORE_MAX, score))
-    return score
+ALPHA = 0.5
+GAMMA = 0.9
 
-
-# 🔥 Common reward template
-def base_reward(command_history):
-    return 0.12 - 0.01 * len(command_history)
-
-# ---------------- CONFIG ----------------
-class ConfigGrader(BaseGrader):
-    def grade(self, filesystem, process_manager, command_history, state=None):
-        state = state or {}
-
-        config_fixed = filesystem.exists("/etc/app/conf")
-        app_running = state.get("services_running", {}).get("app", False)
-
-        # 🔥 STEP PENALTY (important)
-        reward = base_reward(command_history)
-
-        # ✅ positive signals
-        if config_fixed:
-            reward += 0.4
-
-        if app_running:
-            reward += 0.5
-
-        # ❌ no progress penalty
-        if not config_fixed and not app_running:
-            reward -= 0.02
-
-        # ⚡ efficiency bonus
-        if config_fixed and app_running and len(command_history) <= 5:
-            reward += 0.05
-
-        done = config_fixed and app_running
-
-        return _safe_score(reward), done, "State evaluated"
-# ---------------- PORT ----------------
-class PortGrader(BaseGrader):
-    def grade(self, filesystem, process_manager, command_history, state=None):
-        state = state or {}
-        target_port = state.get("target_port", 8080)
-        app_running = state.get("services_running", {}).get("app", False)
-        rogue_killed = process_manager.is_port_free(target_port)
-
-        reward = base_reward(command_history)
-
-        if rogue_killed:
-            reward += 0.40
-        if app_running:
-            reward += 0.50
-
-        if not rogue_killed and not app_running:
-            reward -= 0.02
-
-        if rogue_killed and app_running and len(command_history) <= 5:
-            reward += 0.05
-
-        done = (rogue_killed and app_running)
-        return _safe_score(reward), done, "State evaluated"
+EPSILON = 1.0
+EPSILON_DECAY = 0.97
+MIN_EPSILON = 0.05
 
 
-# ---------------- DEPENDENCY ----------------
-class DependencyGrader(BaseGrader):
-    def grade(self, filesystem, process_manager, command_history, state=None):
-        state = state or {}
-        deps_installed = state.get("dependencies_installed", False)
-        app_running = state.get("services_running", {}).get("app", False)
-
-        reward = base_reward(command_history)
-
-        if deps_installed:
-            reward += 0.40
-        if app_running:
-            reward += 0.50
-
-        if not deps_installed:
-            reward -= 0.05
-
-        if deps_installed and app_running and len(command_history) <= 6:
-            reward += 0.05
-
-        done = (deps_installed and app_running)
-        return _safe_score(reward), done, "State evaluated"
+# ================= LOAD/SAVE =================
+def save_model(Q):
+    with open(MODEL_PATH, "w") as f:
+        json.dump(Q, f)
 
 
-# ---------------- TRAP ----------------
-class TrapGrader(BaseGrader):
-    def grade(self, filesystem, process_manager, command_history, state=None):
-        state = state or {}
-        health = state.get("health_status", True)
-
-        reward = base_reward(command_history)
-
-        if health:
-            reward += 0.50
-        else:
-            reward -= 0.20
-
-        if len(command_history) > 3:
-            reward -= 0.05
-
-        done = (health and len(command_history) >= 2) or not health
-        return _safe_score(reward), done, "State evaluated"
+def load_model():
+    if os.path.exists(MODEL_PATH):
+        return json.load(open(MODEL_PATH))
+    return {}
 
 
-# ---------------- DISK ----------------
-class DiskGrader(BaseGrader):
-    def grade(self, filesystem, process_manager, command_history, state=None):
-        state = state or {}
-        log_path = state.get("target_log", "/var/log/syslog")
-        file_deleted = not filesystem.exists(log_path)
-        disk_freed = state.get("disk_usage", 100) < 80
-
-        reward = base_reward(command_history)
-
-        if file_deleted:
-            reward += 0.40
-        if disk_freed:
-            reward += 0.50
-
-        if not file_deleted:
-            reward -= 0.05
-
-        if disk_freed and len(command_history) <= 5:
-            reward += 0.05
-
-        done = (file_deleted and disk_freed)
-        return _safe_score(reward), done, "State evaluated"
+Q = load_model()
 
 
-# ---------------- OOM ----------------
-class OOMGrader(BaseGrader):
-    def grade(self, filesystem, process_manager, command_history, state=None):
-        state = state or {}
-        target_pid = state.get("rogue_pid", 999)
-        proc = process_manager.get_by_pid(target_pid)
-        rogue_dead = not proc or not proc.is_alive
-        mem_freed = state.get("memory_usage", 100) < 80
+# ================= STATE =================
+def get_state(obs):
+    text = (obs.get("stdout", "") + obs.get("stderr", "")).lower()
 
-        reward = base_reward(command_history)
-
-        if rogue_dead:
-            reward += 0.40
-        if mem_freed:
-            reward += 0.50
-
-        if not rogue_dead:
-            reward -= 0.05
-
-        if rogue_dead and mem_freed and len(command_history) <= 5:
-            reward += 0.05
-
-        done = rogue_dead
-        return _safe_score(reward), done, "State evaluated"
+    return json.dumps({
+        "error": "error" in text,
+        "disk": "100%" in text or "no space" in text,
+        "memory": "oom" in text or "memory" in text,
+        "dep": "cannot connect" in text,
+        "auth": "invalid" in text or "authentication" in text,
+        "service_down": "failed" in text or "inactive" in text,
+    }, sort_keys=True)
 
 
-# ---------------- CASCADE (IMPORTANT TASK) ----------------
-class CascadeGrader(BaseGrader):
-    def grade(self, filesystem, process_manager, command_history, state=None):
-        state = state or {}
+# ================= POLICY =================
+def choose_action(state, training=True):
+    global EPSILON
 
-        rogue_pid = state.get("rogue_pid", 999)
-        log_path = state.get("target_log", "/var/log/syslog")
+    if training and random.random() < EPSILON:
+        return random.choice(ACTIONS)
 
-        proc = process_manager.get_by_pid(rogue_pid)
-        rogue_dead = not proc or not proc.is_alive
-        log_cleared = not filesystem.exists(log_path)
-        db_running = state.get("services_running", {}).get("db", False)
+    q_vals = [Q.get(f"{state}|{a}", 0.5) for a in ACTIONS]
+    return ACTIONS[q_vals.index(max(q_vals))]
 
-        reward = base_reward(command_history)
 
-        if log_cleared:
-            reward += 0.30
-        if rogue_dead:
-            reward += 0.30
-        if db_running:
-            reward += 0.30
+# ================= TRAIN =================
+def train(episodes=300):
+    global EPSILON, Q
 
-        # ❗ penalize no progress
-        if not (log_cleared or rogue_dead or db_running):
-            reward -= 0.03
+    rewards = []
+    success_count = 0
 
-        # ❗ bonus for efficient solution
-        if log_cleared and rogue_dead and db_running and len(command_history) <= 7:
-            reward += 0.05
+    for ep in range(episodes):
+        task_id = random.choice(TASKS)
 
-        done = (log_cleared and rogue_dead and db_running)
-        return _safe_score(reward), done, "State evaluated"
+        r = requests.post(f"{BASE_URL}/reset", json={"task_id": task_id})
+        obs = r.json()["observation"]
+
+        state = get_state(obs)
+        total_reward = 0
+
+        for step in range(15):
+            action = choose_action(state)
+
+            r = requests.post(f"{BASE_URL}/step", json={"command": action})
+            data = r.json()
+
+            obs = data["observation"]
+            reward = data["reward"]
+            done = data["done"]
+
+            next_state = get_state(obs)
+
+            key = f"{state}|{action}"
+            old_q = Q.get(key, 0.5)
+
+            future_q = max([Q.get(f"{next_state}|a", 0.5) for a in ACTIONS])
+
+            Q[key] = old_q + ALPHA * (reward + GAMMA * future_q - old_q)
+
+            state = next_state
+            total_reward += reward
+
+            if done:
+                if reward > 0.5:
+                    success_count += 1
+                break
+
+        rewards.append(total_reward)
+
+        EPSILON = max(MIN_EPSILON, EPSILON * EPSILON_DECAY)
+
+        print(f"Ep {ep+1} | Task {task_id} | Reward {round(total_reward,2)} | Eps {round(EPSILON,2)}")
+
+    save_model(Q)
+
+    print("\n✅ Training Complete")
+    print("Success Rate:", success_count / episodes)
+
+    # Plot learning
+    plt.plot(rewards)
+    plt.title("Training Progress")
+    plt.xlabel("Episode")
+    plt.ylabel("Reward")
+    plt.show()
+
+
+# ================= EVALUATION =================
+def evaluate(episodes=50):
+    success = 0
+
+    for _ in range(episodes):
+        task_id = random.choice(TASKS)
+
+        r = requests.post(f"{BASE_URL}/reset", json={"task_id": task_id})
+        obs = r.json()["observation"]
+
+        state = get_state(obs)
+
+        for _ in range(15):
+            action = choose_action(state, training=False)
+
+            r = requests.post(f"{BASE_URL}/step", json={"command": action})
+            data = r.json()
+
+            obs = data["observation"]
+            reward = data["reward"]
+            done = data["done"]
+
+            state = get_state(obs)
+
+            if done:
+                if reward > 0.5:
+                    success += 1
+                break
+
+    print("Evaluation Success Rate:", success / episodes)
+
+
+# ================= RUN =================
+train(episodes=300)
+evaluate()
